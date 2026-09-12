@@ -15,7 +15,8 @@ import {
   Check,
   FileEdit,
   Upload,
-  Download
+  Download,
+  Play
 } from 'lucide-react'
 import type { SftpEntry } from '@shared/types'
 
@@ -35,6 +36,13 @@ function parentPath(p: string): string {
   const idx = trimmed.lastIndexOf('/')
   if (idx <= 0) return p.startsWith('/') ? '/' : trimmed
   return trimmed.slice(0, idx)
+}
+
+const VIDEO_EXT = ['.mp4', '.m4v', '.webm', '.ogv', '.mov', '.mkv', '.avi', '.wmv', '.flv', '.ts', '.mpg', '.mpeg', '.3gp', '.rmvb']
+
+function isVideo(name: string): boolean {
+  const i = name.lastIndexOf('.')
+  return i > 0 && VIDEO_EXT.includes(name.slice(i).toLowerCase())
 }
 
 interface Props {
@@ -203,6 +211,12 @@ export default function FilePane({
     }
   }
 
+  function play(e: SftpEntry): void {
+    void window.janus.media
+      .open({ title: e.name, path: e.path, serverId: isLocal ? undefined : serverId })
+      .catch((err) => setError((err as Error).message))
+  }
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
       {/* Toolbar */}
@@ -298,6 +312,18 @@ export default function FilePane({
                   )}
                   <td className="px-2 py-1.5">
                     <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100">
+                      {e.type === 'file' && isVideo(e.name) && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            play(e)
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
+                          title="Play video"
+                        >
+                          <Play size={12} />
+                        </button>
+                      )}
                       <button
                         onClick={(ev) => {
                           ev.stopPropagation()

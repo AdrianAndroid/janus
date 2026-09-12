@@ -2,6 +2,10 @@ import { app, shell, BrowserWindow, Rectangle } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { registerIpc } from './ipc'
+import { registerMediaScheme } from './media'
+
+// Custom streaming protocol for the media player — must register before ready.
+registerMediaScheme()
 
 let mainWindow: BrowserWindow | null = null
 

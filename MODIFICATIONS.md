@@ -74,7 +74,16 @@
 - 远程/本地均以登录用户权限运行，无提权能力；远程目录权限不足需 `sudo chown/chmod`。
 - macOS 本地目录读不到时检查：系统设置 → 隐私与安全性 → 文件与文件夹 / 完全磁盘访问权限 → Janus(Electron)。
 
-## 6. 验证状态
+## 6. 视频播放功能（2026-09-12 实现）
+
+- 入口：FilePane 行内操作区，视频文件（mp4/m4v/webm/ogv/mov/mkv/avi/wmv/flv/ts/mpg/mpeg/3gp/rmvb）显示 Play 按钮，本地与远程栏均有效。
+- 架构：`src/main/media.ts` 注册自定义协议 `janus-media://`（`index.ts` 在 app ready 前 `registerMediaScheme()`，`ipc.ts` 在 ready 后 `setupMediaProtocol()`）；处理器支持 **HTTP Range**，本地走 `fs.createReadStream({start,end})`，远程走 `sftp.createReadStream({start,end})`（复用 `ssh-manager.getSftp`/`sftpStat`），**远程大视频免下载流式播放、可拖动进度**。
+- 播放窗口：`openMediaPlayer()` 新建独立 BrowserWindow（960×600 黑底），加载 data: URL 内嵌 `<video controls autoplay>`；无 preload、无 node 集成。
+- IPC：`media:open`（`MediaOpenRequest{title,path,serverId?}`）；preload 暴露 `media.open`；远程请求先 `findServer` 校验。
+- 限制：Chromium 编解码决定可播范围——mp4/H.264/WebM 良好；**MKV/AVI/HEVC/RMVB 很可能无法解码**（按钮仍在，播不出属预期）；MIME 未知时回退 octet-stream。
+- 播放进度记忆（2026-09-12）：进度存主进程 `userData/media-progress.json`（key = `serverId:path` 或本地 path，远程按服务器隔离）；播放中每 5 秒及关闭窗口时经 `webContents.executeJavaScript` 读取 `video.currentTime` 保存；重开时 dom-ready 注入脚本在 `loadedmetadata` 后恢复 `currentTime`（>3 秒才恢复）。data: URL 页面无可靠 localStorage，故走主进程持久化。
+
+## 7. 验证状态
 
 | 项 | 状态 |
 |---|---|
@@ -83,5 +92,6 @@
 | `git diff --check` | ✅ 通过 |
 | GUI 逐页面目检 | ❌ 未做 |
 | 真机传输（192.168.2.2）：大文件续传、断网恢复、文件夹递归、冲突四动作 | ❌ 未做 |
+| 视频播放：本地/远程 mp4、Range 拖动、MKV 行为 | ❌ 未做 |
 | frp 隧道传输 | ❌ 未做 |
 | 首次真机传输出现 Failed（2026-09-12 用户报告），原因待确认（疑似权限/路径），错误文本未拿到 | ⏳ 待排查 |

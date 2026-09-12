@@ -10,7 +10,8 @@ import { DbManager } from './db-manager'
 import { aiChat } from './ai'
 import { TransferManager } from './transfer-manager'
 import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
-import type { ConflictAction, KeyType, DbConnection, AiMessage, TransferRequest } from '@shared/types'
+import { mediaProgressKey, mediaUrl, openMediaPlayer, setupMediaProtocol } from './media'
+import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
 import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
 
 /** Wrap a handler so it always returns a tidy IpcResult and never throws across IPC. */
@@ -50,6 +51,18 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const transfers = new TransferManager(ssh, emit, (serverId) => {
     const profile = findServer(serverId)
     return { profile, jump: jumpFor(profile) }
+  })
+  setupMediaProtocol(ssh, (serverId) => {
+    const profile = findServer(serverId)
+    return { profile, jump: jumpFor(profile) }
+  })
+
+  // ---- Media player ----
+  handle(IPC.mediaOpen, async (req) => {
+    const r = req as MediaOpenRequest
+    if (r.serverId) findServer(r.serverId) // validates the id
+    openMediaPlayer(r.title || 'Player', mediaUrl(r.serverId, r.path), mediaProgressKey(r.serverId, r.path))
+    return true
   })
 
   // ---- Vault lifecycle ----

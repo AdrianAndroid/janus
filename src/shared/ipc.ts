@@ -104,6 +104,9 @@ export const IPC = {
   tunnelStop: 'tunnel:stop',
   tunnelOnStatus: 'tunnel:on-status',
 
+  // Media player
+  mediaOpen: 'media:open',
+
   // Dialogs / misc
   dialogOpenFile: 'dialog:open-file',
   dialogSaveFile: 'dialog:save-file',

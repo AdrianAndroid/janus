@@ -157,6 +157,9 @@ const api = {
     export: () => invoke<string>(IPC.sshConfigExport)
   },
   notify: (title: string, body: string) => ipcRenderer.send(IPC.notifyShow, title, body),
+  media: {
+    open: (req: import('../shared/types').MediaOpenRequest) => invoke<boolean>(IPC.mediaOpen, req)
+  },
   ai: {
     chat: (messages: import('../shared/types').AiMessage[], system: string) =>
       invoke<import('../shared/types').AiReply>(IPC.aiChat, messages, system)

@@ -256,6 +256,17 @@ export interface TransferRequest {
   isDir: boolean
 }
 
+// ---- Media player ----
+
+export interface MediaOpenRequest {
+  /** Window title (usually the file name). */
+  title: string
+  /** Local absolute path, or remote absolute path when serverId is set. */
+  path: string
+  /** Set for remote (SFTP) playback; omit for local files. */
+  serverId?: string
+}
+
 // ---- Auto-update ----
 
 export type UpdatePhase =
