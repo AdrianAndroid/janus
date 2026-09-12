@@ -160,6 +160,24 @@ const api = {
   media: {
     open: (req: import('../shared/types').MediaOpenRequest) => invoke<boolean>(IPC.mediaOpen, req)
   },
+  diskUsage: {
+    openWindow: (req: { target: import('../shared/disk-usage').DiskTarget; initialPath?: string }) =>
+      invoke<boolean>(IPC.diskOpenWindow, req),
+    onFilesChanged: (cb: (payload: { target: import('../shared/disk-usage').DiskTarget; affectedPaths: string[]; operationId: string }) => void) => {
+      const listener = (_e: unknown, payload: { target: import('../shared/disk-usage').DiskTarget; affectedPaths: string[]; operationId: string }): void => cb(payload)
+      ipcRenderer.on(IPC.diskFilesChanged, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.diskFilesChanged, listener)
+      }
+    },
+    onOpenInFiles: (cb: (req: import('../shared/disk-usage').OpenInFilesRequest) => void) => {
+      const listener = (_e: unknown, payload: import('../shared/disk-usage').OpenInFilesRequest): void => cb(payload)
+      ipcRenderer.on(IPC.diskOpenInFilesRequest, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.diskOpenInFilesRequest, listener)
+      }
+    }
+  },
   ai: {
     chat: (messages: import('../shared/types').AiMessage[], system: string) =>
       invoke<import('../shared/types').AiReply>(IPC.aiChat, messages, system)

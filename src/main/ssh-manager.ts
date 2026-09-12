@@ -337,6 +337,44 @@ export class SSHManager {
     }
   }
 
+  /**
+   * Dedicated-connection exec channel for long-running structured protocols
+   * (Disk Usage scan/delete). stdout/stderr stay separate, stdin stays
+   * writable, and closing it never disturbs shared SFTP/terminal sessions.
+   */
+  async openExecChannel(
+    profile: ServerProfile,
+    command: string,
+    jump?: ServerProfile | null
+  ): Promise<{ stream: ClientChannel; close: () => void }> {
+    const client = await this.connectClient(profile, jump)
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const fail = (err: Error): void => {
+        if (settled) return
+        settled = true
+        client.end()
+        reject(err)
+      }
+      client.once('error', fail)
+      client.exec(command, (err, stream) => {
+        if (err) return fail(err)
+        settled = true
+        resolve({
+          stream,
+          close: () => {
+            try {
+              stream.close()
+            } catch {
+              /* already closed */
+            }
+            client.end()
+          }
+        })
+      })
+    })
+  }
+
   // ---------------- SFTP ----------------
 
   private sftpClients = new Map<string, Client>()

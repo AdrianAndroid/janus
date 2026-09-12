@@ -10,7 +10,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/main/index.ts') }
+        input: {
+          index: resolve('src/main/index.ts'),
+          'disk-usage-worker': resolve('src/main/disk-usage/worker.ts')
+        }
       }
     }
   },
@@ -21,7 +24,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/preload/index.ts') }
+        input: {
+          index: resolve('src/preload/index.ts'),
+          'disk-usage': resolve('src/preload/disk-usage.ts')
+        }
       }
     }
   },
@@ -43,7 +49,10 @@ export default defineConfig({
     build: {
       target: 'es2022',
       rollupOptions: {
-        input: { index: resolve('src/renderer/index.html') }
+        input: {
+          index: resolve('src/renderer/index.html'),
+          diskUsage: resolve('src/renderer/disk-usage.html')
+        }
       }
     }
   }

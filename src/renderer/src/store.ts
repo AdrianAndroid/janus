@@ -15,6 +15,7 @@ import type {
   TransferRequest,
   TransferTask
 } from '@shared/types'
+import type { OpenInFilesRequest } from '@shared/disk-usage'
 
 // --- Lightweight UI-preference persistence (localStorage). NEVER store the
 // vault here — only non-sensitive UI state so the app remembers where you were.
@@ -91,6 +92,10 @@ interface UIState {
   transfers: TransferTask[]
   conflicts: TransferConflict[]
   rememberedActions: Partial<Record<TransferDirection, ConflictAction>>
+
+  // disk usage cross-window requests
+  filesNavigation: OpenInFilesRequest | null
+  filesChangedToken: number
 }
 
 interface Actions {
@@ -179,6 +184,10 @@ interface Actions {
   resumeTransfer: (id: string) => Promise<void>
   clearFinishedTransfers: () => Promise<void>
   resolveConflict: (taskId: string, action: ConflictAction, remember: boolean, newName?: string) => Promise<void>
+
+  // disk usage cross-window requests
+  initDiskUsageListeners: () => void
+  clearFilesNavigation: () => void
 }
 
 export const useStore = create<UIState & Actions>((set, get) => ({
@@ -208,6 +217,8 @@ export const useStore = create<UIState & Actions>((set, get) => ({
   transfers: [],
   conflicts: [],
   rememberedActions: {},
+  filesNavigation: null,
+  filesChangedToken: 0,
 
   async init() {
     set({ loading: true })
@@ -604,6 +615,30 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     set({ conflicts: get().conflicts.filter((c) => c.taskId !== taskId) })
   },
 
+  // ---- disk usage cross-window requests ----
+
+  initDiskUsageListeners() {
+    if (diskUsageListenersReady) return
+    diskUsageListenersReady = true
+    window.janus.diskUsage.onOpenInFiles((req) => {
+      // Open (or reuse) a Files tab for the target, then hand the navigation
+      // request to FilesPanel — different renderer processes, no shared store.
+      if (req.target.kind === 'ssh') {
+        get().openSftp(req.target.serverId)
+      } else if (req.sourceServerId) {
+        get().openSftp(req.sourceServerId)
+      }
+      set({ filesNavigation: req })
+    })
+    window.janus.diskUsage.onFilesChanged(() => {
+      set({ filesChangedToken: get().filesChangedToken + 1 })
+    })
+  },
+
+  clearFilesNavigation() {
+    set({ filesNavigation: null })
+  },
+
   toggleNotes() {
     const open = !get().notesOpen
     savePrefs({ notesOpen: open })
@@ -635,3 +670,4 @@ export const useStore = create<UIState & Actions>((set, get) => ({
 
 let notesTimer: ReturnType<typeof setTimeout> | undefined
 let transferListenersReady = false
+let diskUsageListenersReady = false

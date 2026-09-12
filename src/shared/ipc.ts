@@ -107,6 +107,24 @@ export const IPC = {
   // Media player
   mediaOpen: 'media:open',
 
+  // Disk Usage analyzer (analysis window)
+  diskOpenWindow: 'disk:open-window',
+  diskContext: 'disk:context',
+  diskBrowse: 'disk:browse',
+  diskStart: 'disk:start',
+  diskCancel: 'disk:cancel',
+  diskSnapshot: 'disk:snapshot',
+  diskDirectory: 'disk:directory',
+  diskWarnings: 'disk:warnings',
+  diskPrepareDelete: 'disk:prepare-delete',
+  diskExecuteDelete: 'disk:execute-delete',
+  diskCancelDelete: 'disk:cancel-delete',
+  diskDeleteSnapshot: 'disk:delete-snapshot',
+  diskOpenInFiles: 'disk:open-in-files',
+  diskEvent: 'disk:event', // main -> analysis window
+  diskFilesChanged: 'disk:files-changed', // main -> main window
+  diskOpenInFilesRequest: 'disk:open-in-files-request', // main -> main window
+
   // Dialogs / misc
   dialogOpenFile: 'dialog:open-file',
   dialogSaveFile: 'dialog:save-file',

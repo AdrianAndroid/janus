@@ -54,6 +54,17 @@ export class TransferManager {
     return [...this.tasks.values()].map((t) => this.public(t))
   }
 
+  /** Read-only view of in-flight transfer endpoints (for delete conflict checks). */
+  activePaths(): Array<{ serverId: string; direction: TransferDirection; localPath: string; remotePath: string }> {
+    const out: Array<{ serverId: string; direction: TransferDirection; localPath: string; remotePath: string }> = []
+    for (const t of this.tasks.values()) {
+      if (t.status === 'queued' || t.status === 'scanning' || t.status === 'running' || t.status === 'waiting-conflict') {
+        out.push({ serverId: t.serverId, direction: t.direction, localPath: t.localPath, remotePath: t.remotePath })
+      }
+    }
+    return out
+  }
+
   start(req: TransferRequest): string {
     const { profile, jump } = this.find(req.serverId)
     const name = (req.direction === 'upload' ? req.localPath : req.remotePath).split(/[\\/]/).pop() || 'transfer'

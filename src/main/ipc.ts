@@ -11,6 +11,8 @@ import { aiChat } from './ai'
 import { TransferManager } from './transfer-manager'
 import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
 import { mediaProgressKey, mediaUrl, openMediaPlayer, setupMediaProtocol } from './media'
+import { registerDiskIpc, type DiskRuntime } from './disk-usage/ipc'
+import type { DiskTarget } from '@shared/disk-usage'
 import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
 import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
 
@@ -18,6 +20,11 @@ import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
 function handle<T>(channel: string, fn: (...args: unknown[]) => Promise<T> | T): void {
   ipcMain.handle(channel, async (_e, ...args) => {
     try {
+      // Legacy channels are main-window only: auxiliary windows (analysis,
+      // media) never carry the main preload, and are rejected here in depth.
+      if (mainWindowRef && _e.sender.id !== mainWindowRef()?.webContents.id) {
+        return { ok: false, error: 'INVALID_OWNER' } as IpcResult<T>
+      }
       const data = await fn(...args)
       return { ok: true, data } as IpcResult<T>
     } catch (err) {
@@ -25,6 +32,8 @@ function handle<T>(channel: string, fn: (...args: unknown[]) => Promise<T> | T):
     }
   })
 }
+
+let mainWindowRef: (() => BrowserWindow | null) | null = null
 
 /** Look up a server profile by id from the in-memory vault. */
 function findServer(id: string): ServerProfile {
@@ -39,7 +48,8 @@ function jumpFor(profile: ServerProfile): ServerProfile | null {
   return vaultStore.read().servers.find((x) => x.id === profile.jumpHostId) ?? null
 }
 
-export function registerIpc(getWindow: () => BrowserWindow | null): void {
+export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime {
+  mainWindowRef = getWindow
   const emit = (channel: string, payload: unknown): void => {
     getWindow()?.webContents.send(channel, payload)
   }
@@ -55,6 +65,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   setupMediaProtocol(ssh, (serverId) => {
     const profile = findServer(serverId)
     return { profile, jump: jumpFor(profile) }
+  })
+  const diskRuntime: DiskRuntime = registerDiskIpc({
+    getWindow,
+    ssh,
+    transfers,
+    isUnlocked: () => vaultStore.isUnlocked,
+    findServer,
+    jumpFor,
+    getTheme: () => {
+      try {
+        return (vaultStore.read().settings as { theme?: string }).theme
+      } catch {
+        return undefined
+      }
+    },
+    resolveDefaultPath: async (target: DiskTarget) => {
+      if (target.kind === 'local') return (await import('os')).homedir()
+      const profile = findServer(target.serverId)
+      const { cwd } = await ssh.sftpList(profile, '.', jumpFor(profile))
+      return cwd
+    }
   })
 
   // ---- Media player ----
@@ -87,6 +118,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   })
   handle(IPC.vaultUnlock, async (password) => vaultStore.unlock(password as string))
   handle(IPC.vaultLock, async () => {
+    diskRuntime.closeAllWindows()
+    await diskRuntime.shutdown()
     ssh.shutdown()
     dbm.shutdown()
     vaultStore.lock()
@@ -356,5 +389,5 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     }
   })
 
-  return
+  return diskRuntime
 }

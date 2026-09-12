@@ -5,7 +5,7 @@
 
 ## 1. 维护规则（每次改动必读，优先执行）
 
-1. **文档保鲜**：每次改动后必须更新本文档对应章节与"最后更新"日期；发现旧记录与代码现状不符时，以代码为准修正文档。验证状态（第 6 节）如实更新。
+1. **文档保鲜**：每次改动后必须更新本文档对应章节与"最后更新"日期；发现旧记录与代码现状不符时，以代码为准修正文档。验证状态（文末"验证状态"节）如实更新。
 2. **分支纪律**：在 `zhaojian` 分支工作；不提交除非用户明确要求；不碰加密/认证/IPC 通道名/vault schema。
 3. **文案规范**：UI 文案一律英文（项目已完成英文化，无 i18n 体系），术语 vault/master password/upload/download/resume 保持一致。
 4. **校验门禁**：改动后跑 `npm run typecheck` + `npm run build` + `git diff --check`，全绿才算完成。
@@ -83,13 +83,59 @@
 - 限制：Chromium 编解码决定可播范围——mp4/H.264/WebM 良好；**MKV/AVI/HEVC/RMVB 很可能无法解码**（按钮仍在，播不出属预期）；MIME 未知时回退 octet-stream。
 - 播放进度记忆（2026-09-12）：进度存主进程 `userData/media-progress.json`（key = `serverId:path` 或本地 path，远程按服务器隔离）；播放中每 5 秒及关闭窗口时经 `webContents.executeJavaScript` 读取 `video.currentTime` 保存；重开时 dom-ready 注入脚本在 `loadedmetadata` 后恢复 `currentTime`（>3 秒才恢复）。data: URL 页面无可靠 localStorage，故走主进程持久化。
 
-## 7. 验证状态
+## 7. Disk Usage 磁盘分析器（2026-09-12 实现，设计规格见 docs/disk-usage-implementation-plan.md）
+
+### 7.1 架构
+| 层 | 文件 | 职责 |
+|---|---|---|
+| 契约 | `src/shared/disk-usage.ts` | DiskTarget/ScanSnapshot/DiskNode/DirectoryView/DeletePlan/事件/错误码/上限常量 |
+| 主进程 | `src/main/disk-usage/manager.ts` | 任务状态机、worker/SSH 句柄、事件序号、删除计划、跨窗消息 |
+| 主进程 | `src/main/disk-usage/worker.ts` | worker_threads 工作线程：本地遍历 / 远程 NDJSON 解析、索引、查询（构建为 out/main/disk-usage-worker.js） |
+| 主进程 | `src/main/disk-usage/index-store.ts` | 纯 TS 节点索引：upsert/commitBatch/排序缓存/面包屑/树图 top-300/删除解析 |
+| 主进程 | `src/main/disk-usage/protocol.ts` | NDJSON 流式解析（StringDecoder、行边界、1MiB 行上限、 malformed 即终止） |
+| 主进程 | `src/main/disk-usage/remote-adapter.ts` | Python 探测（3.8+ 缓存）、固定 bootstrap、base64 信封、取消写入 |
+| 主进程 | `src/main/disk-usage/delete-manager.ts` | 本地 shell.trashItem（身份校验）/ 远程 helper 删除（结果收集、unknown 处理） |
+| 主进程 | `src/main/disk-usage/path-guards.ts` | 组件级 containment（/data vs /data2）、危险目标拒绝 |
+| 主进程 | `src/main/disk-usage/window-manager.ts` | 每设备一个窗口、owner 绑定、恢复聚焦、关闭清理 |
+| 主进程 | `src/main/disk-usage/ipc.ts` | disk:* 通道注册 + sender 校验（主窗仅 open-window，分析窗仅自身资源） |
+| 远程 | `resources/disk-usage/remote.py` | Python 3.8+ 助手：scan（迭代 DFS 后序汇总/st_dev 挂载边界/mountinfo/深度与节点上限/符号链接不跟随/非 UTF-8 标记）+ delete（dir_fd+O_NOFOLLOW 递归、身份与挂载校验、OUTSIDE_ROOT 拒绝） |
+| 桥接 | `src/preload/disk-usage.ts` | 分析窗专用 window.diskUsage（无 vault/profile/ipcRenderer 暴露） |
+| 界面 | `src/renderer/disk-usage.html` + `src/renderer/src/disk-usage/*` | 独立 renderer：DiskUsageApp/DiskToolbar/DiskTreemap(echarts 按需)/DiskDirectoryList(手写虚拟列表)/DiskDeleteDialog/DiskWarnings/BrowseDialog/store（与主窗 vault 完全隔离） |
+| 主窗改动 | `ServerDetail.tsx`（Disk Usage 按钮）、`FilePane.tsx`（目录行 Analyze 入口 + nav 属性）、`FilesPanel.tsx`（导航消费/变更刷新）、`store.ts`（filesNavigation/filesChangedToken/监听） | |
+
+### 7.2 关键行为
+- 入口不自动扫描：仅预填路径；Start Analysis 才建任务；Browse 只列直接子目录；Busy 设备返回 SCAN_BUSY（每设备 1 个活动扫描，全局最多 2 个，结果最多保留 2 份）。
+- 统计口径：普通文件逻辑大小之和；目录自身不计；符号链接 0 字节不跟随；权限错误标 Partial；上限 **50 万节点**（2026-09-12 用户实测家目录超 20 万后由 20 万上调，worker 堆同步 256→512 MiB，maxStringBytes 64→128 MiB）/512 深度，超限 limited。
+- 远程执行：独立 SSH 连接（可单独取消不打断传输/终端/视频）；stdin 信封传 base64 源码+JSON 请求，绝不拼接 shell；Stop 流程 cancel 行→3s TERM→2s 关连接；背压 4MiB pause / 1MiB resume。
+- 删除：两阶段（prepareDelete 后端解析 nodeId→路径+身份 → 60s 计划 → executeDelete 分配 operationId，重复执行幂等）；本地仅废纸篓（失败不降级永久删除）；远程永久删除；逐项 succeeded/failed/not-found/skipped/unknown；断线最后一项 unknown 不重放；传输冲突（activePaths 祖先/后代重叠）拒绝；完成后结果 stale + 主窗 disk:files-changed 刷新 FilePane。
+- IPC 边界加固：旧 handle() 增加主窗 sender 校验（INVALID_OWNER）；分析窗 sandbox:true + 专用 preload；IpcResult 增加可选 code 字段。
+- 锁仓/关主窗 → 关分析窗并取消任务；关分析窗 → 取消其扫描。
+- 构建：electron.vite.config 三处入口（main worker/preload/renderer）；electron-builder extraResources 复制 remote.py；echarts 按需注册（TreemapChart+TooltipComponent+CanvasRenderer）。
+
+### 7.3 与规格的已知偏差（有意简化，后续可补）
+- 本地（macOS）挂载边界仅 st_dev 比较，无 mountinfo（/proc 仅 Linux）；远程已解析 mountinfo。
+- 服务器配置编辑/删除不会自动关闭其分析窗（操作时 findServer 会报错）；窗口标题不跟随改名。
+- StrictMode 双调用下目录查询可能重复发起（幂等，无扫描副作用）。
+- 删除计划 expect 字段随公开计划返回渲染端（只读展示，无安全风险但属冗余）。
+
+### 7.4 后续修复（2026-09-12 同日）
+- **黑屏修复**：分析窗 preload 原引用 `shared/ipc`，rollup 将共享模块拆成 `out/preload/chunks/*.js`，而 `sandbox:true` 的 preload 不允许相对 require → preload 加载失败、`window.diskUsage` 未定义。已将 disk:* 通道名内联进 `src/preload/disk-usage.ts`（注释注明与 shared/ipc.ts 同步），产物自包含仅 `require('electron')`。
+- **调试**：开发模式下分析窗曾自动 `openDevTools({mode:'detach'})` 诊断黑屏；问题修复后已于同日移除。
+- **工具栏改两行**：DiskToolbar 第一行 Root 输入 + Browse，第二行 Start/Stop + 扫描状态 + warnings；原独立状态行删除，stale 提示独立成行。
+- **unknown node 竞态修复**：`start()` 原在收到 `hello` 即返回，但根节点记录随 `nodes` 批次稍后到达，渲染端首个目录查询可能早于索引建立 → `PATH_NOT_FOUND: unknown node`。现 `start()` 需 `hello` + 首个批次（revision≥1）均就绪才返回；任务失败/终态也会释放等待者；目录查询成功后清除旧错误横幅。
+- **本地扫描 Stop 兜底**：本地取消原完全依赖 worker 响应，worker 卡死时停在 Stopping… 无出口。新增 5 秒兜底：仍 canceling 则强制 finishTask(canceled) 并 terminate worker；定时器在 finishTask/disposeTask 均清理。取消响应性已入测试（本地 worker + Python helper，32/32）。
+
+## 8. 验证状态
 
 | 项 | 状态 |
 |---|---|
-| `npm run typecheck`（node+web） | ✅ 通过 |
-| `npm run build` | ✅ 通过 |
+| `npm run typecheck`（node+web） | ✅ 通过（0 错误） |
+| `npm run build`（含 worker/preload/HTML 新产物） | ✅ 通过 |
 | `git diff --check` | ✅ 通过 |
+| Disk Usage 自动化 `node scripts/test-disk-usage.mjs` | ✅ 30/30（协议/守卫/索引/Python 扫描与删除边界） |
+| Disk Usage GUI：开窗、扫描、树图、下钻、删除、跨窗刷新 | ❌ 未做 |
+| 真机远程扫描（192.168.2.2）与隔离目录删除 | ❌ 未做 |
+| 生产打包后分析窗/worker/remote.py 路径 | ❌ 未做 |
 | GUI 逐页面目检 | ❌ 未做 |
 | 真机传输（192.168.2.2）：大文件续传、断网恢复、文件夹递归、冲突四动作 | ❌ 未做 |
 | 视频播放：本地/远程 mp4、Range 拖动、MKV 行为 | ❌ 未做 |

@@ -19,7 +19,8 @@ import {
   Box,
   ScrollText,
   Monitor,
-  MonitorPlay
+  MonitorPlay,
+  PieChart
 } from 'lucide-react'
 import { useStore } from '../store'
 import { ratios, record, history } from '../lib/metricsHistory'
@@ -83,32 +84,46 @@ export default function ServerDetail(): JSX.Element {
         </div>
       </div>
 
-      <div className="mb-6 flex gap-2">
-        <button onClick={() => openTerminal(server.id)} className="btn-primary">
-          <TerminalIcon size={16} /> Open Terminal
-        </button>
-        <button onClick={() => openSftp(server.id)} className="btn-ghost border border-ink-500">
-          <FolderTree size={16} /> Files
-        </button>
-        <button onClick={() => openDocker(server.id)} className="btn-ghost border border-ink-500">
-          <Box size={16} /> Services
-        </button>
-        <button onClick={() => openLogs(server.id)} className="btn-ghost border border-ink-500">
-          <ScrollText size={16} /> Logs
-        </button>
-        <button onClick={() => openVnc(server.id)} className="btn-ghost border border-ink-500">
-          <Monitor size={16} /> VNC
-        </button>
-        <button
-          onClick={() => window.janus.rdp.launch(server.id).catch((e) => alert((e as Error).message))}
-          className="btn-ghost border border-ink-500"
-          title="Windows remote desktop"
-        >
-          <MonitorPlay size={16} /> RDP
-        </button>
-        <button onClick={() => openServerForm(server)} className="btn-ghost border border-ink-500">
-          <Pencil size={16} /> Edit
-        </button>
+      <div className="mb-6 flex flex-col gap-2">
+        <div className="flex gap-2">
+          <button onClick={() => openTerminal(server.id)} className="btn-primary">
+            <TerminalIcon size={16} /> Open Terminal
+          </button>
+          <button onClick={() => openSftp(server.id)} className="btn-ghost border border-ink-500">
+            <FolderTree size={16} /> Files
+          </button>
+          <button
+            onClick={() =>
+              window.janus.diskUsage
+                .openWindow({ target: { kind: 'ssh', serverId: server.id } })
+                .catch((e) => alert((e as Error).message))
+            }
+            className="btn-ghost border border-ink-500"
+          >
+            <PieChart size={16} /> Disk Usage
+          </button>
+          <button onClick={() => openDocker(server.id)} className="btn-ghost border border-ink-500">
+            <Box size={16} /> Services
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => openLogs(server.id)} className="btn-ghost border border-ink-500">
+            <ScrollText size={16} /> Logs
+          </button>
+          <button onClick={() => openVnc(server.id)} className="btn-ghost border border-ink-500">
+            <Monitor size={16} /> VNC
+          </button>
+          <button
+            onClick={() => window.janus.rdp.launch(server.id).catch((e) => alert((e as Error).message))}
+            className="btn-ghost border border-ink-500"
+            title="Windows remote desktop"
+          >
+            <MonitorPlay size={16} /> RDP
+          </button>
+          <button onClick={() => openServerForm(server)} className="btn-ghost border border-ink-500">
+            <Pencil size={16} /> Edit
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

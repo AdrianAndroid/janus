@@ -342,4 +342,6 @@ export interface IpcResult<T = unknown> {
   ok: boolean
   data?: T
   error?: string
+  /** Stable machine-readable error code (newer channels). */
+  code?: string
 }

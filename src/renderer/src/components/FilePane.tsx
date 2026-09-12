@@ -16,7 +16,8 @@ import {
   FileEdit,
   Upload,
   Download,
-  Play
+  Play,
+  PieChart
 } from 'lucide-react'
 import type { SftpEntry } from '@shared/types'
 
@@ -57,6 +58,8 @@ interface Props {
   onStatus?: (ok: boolean) => void
   /** Show the Size column (and measure folder sizes) — vertical layout only. */
   showSizes: boolean
+  /** One-shot navigation request to a directory (optionally selecting an entry). */
+  nav?: { path: string; selectName?: string; token: number } | null
 }
 
 /** One side of the dual-pane file manager (local disk or remote SFTP). */
@@ -70,7 +73,8 @@ export default function FilePane({
   onEditFile,
   refreshToken,
   onStatus,
-  showSizes
+  showSizes,
+  nav
 }: Props): JSX.Element {
   const isLocal = kind === 'local'
   const [path, setPath] = useState('')
@@ -89,7 +93,7 @@ export default function FilePane({
   }
 
   const load = useCallback(
-    async (target?: string) => {
+    async (target?: string): Promise<SftpEntry[] | null> => {
       setLoading(true)
       setError(null)
       try {
@@ -102,9 +106,11 @@ export default function FilePane({
         setPath(cwd)
         onPathChange(cwd)
         onStatus?.(true)
+        return list
       } catch (e) {
         setError((e as Error).message)
         onStatus?.(false)
+        return null
       } finally {
         setLoading(false)
       }
@@ -112,6 +118,20 @@ export default function FilePane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isLocal, serverId, path, onPathChange, onStatus]
   )
+
+  // One-shot navigation request (e.g. "Open in Files" from Disk Usage).
+  const navToken = nav?.token
+  useEffect(() => {
+    if (!nav || navToken === undefined) return
+    void (async () => {
+      const list = await load(nav.path)
+      if (nav.selectName && list) {
+        const found = list.find((e) => e.name === nav.selectName)
+        if (found) onSelect(found)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navToken])
 
   useEffect(() => {
     void load()
@@ -214,6 +234,15 @@ export default function FilePane({
   function play(e: SftpEntry): void {
     void window.janus.media
       .open({ title: e.name, path: e.path, serverId: isLocal ? undefined : serverId })
+      .catch((err) => setError((err as Error).message))
+  }
+
+  function analyze(e: SftpEntry): void {
+    void window.janus.diskUsage
+      .openWindow({
+        target: isLocal ? { kind: 'local' } : { kind: 'ssh', serverId },
+        initialPath: e.path
+      })
       .catch((err) => setError((err as Error).message))
   }
 
@@ -354,6 +383,18 @@ export default function FilePane({
                           title="Edit"
                         >
                           <FileEdit size={12} />
+                        </button>
+                      )}
+                      {e.type === 'directory' && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            analyze(e)
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
+                          title="Analyze Disk Usage"
+                        >
+                          <PieChart size={12} />
                         </button>
                       )}
                       <button

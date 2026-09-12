@@ -3,9 +3,12 @@ import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import { registerIpc } from './ipc'
 import { registerMediaScheme } from './media'
+import type { DiskRuntime } from './disk-usage/ipc'
 
 // Custom streaming protocol for the media player — must register before ready.
 registerMediaScheme()
+
+let diskRuntime: DiskRuntime | null = null
 
 let mainWindow: BrowserWindow | null = null
 
@@ -55,7 +58,11 @@ function createWindow(): void {
   // Remember size/position.
   mainWindow.on('resize', saveBounds)
   mainWindow.on('move', saveBounds)
-  mainWindow.on('close', saveBounds)
+  mainWindow.on('close', () => {
+    saveBounds()
+    // No orphaned management windows: close analysis windows with the main one.
+    diskRuntime?.closeAllWindows()
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
@@ -71,7 +78,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  registerIpc(() => mainWindow)
+  diskRuntime = registerIpc(() => mainWindow)
   createWindow()
 
   app.on('activate', () => {

@@ -12,9 +12,13 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
   const {
     setTabStatus,
     initTransferListeners,
+    initDiskUsageListeners,
     startTransfer,
     transfers,
-    conflicts
+    conflicts,
+    filesNavigation,
+    clearFilesNavigation,
+    filesChangedToken
   } = useStore()
   const serverId = tab.serverId
 
@@ -27,10 +31,35 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
   const [editing, setEditing] = useState<SftpEntry | null>(null)
   const [layout, setLayout] = useState<'vertical' | 'horizontal'>('vertical')
   const vertical = layout === 'vertical'
+  const [nav, setNav] = useState<{ pane: 'local' | 'remote'; path: string; selectName?: string; token: number } | null>(null)
 
   useEffect(() => {
     initTransferListeners()
-  }, [initTransferListeners])
+    initDiskUsageListeners()
+  }, [initTransferListeners, initDiskUsageListeners])
+
+  // Consume "Open in Files" navigation requests targeted at this tab.
+  useEffect(() => {
+    if (!filesNavigation) return
+    const req = filesNavigation
+    if (req.target.kind === 'ssh' && req.target.serverId !== serverId) return
+    setNav({
+      pane: req.target.kind === 'ssh' ? 'remote' : 'local',
+      path: req.path,
+      selectName: req.selectName,
+      token: Date.now()
+    })
+    clearFilesNavigation()
+  }, [filesNavigation, serverId, clearFilesNavigation])
+
+  // Files changed elsewhere (Disk Usage delete) → refresh both panes.
+  const lastChangeToken = useRef(filesChangedToken)
+  useEffect(() => {
+    if (filesChangedToken === lastChangeToken.current) return
+    lastChangeToken.current = filesChangedToken
+    setLeftRefresh((n) => n + 1)
+    setRightRefresh((n) => n + 1)
+  }, [filesChangedToken])
 
   // Refresh both panes whenever a transfer reaches a terminal state.
   const prevStatus = useRef(new Map<string, string>())
@@ -95,6 +124,7 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
           onTransferEntry={upload}
           refreshToken={leftRefresh}
           showSizes={vertical}
+          nav={nav?.pane === 'local' ? nav : null}
         />
 
         {/* Divider with transfer buttons + layout toggle */}
@@ -151,6 +181,7 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
           refreshToken={rightRefresh}
           onStatus={(ok) => setTabStatus(tab.id, ok ? 'connected' : 'error')}
           showSizes={vertical}
+          nav={nav?.pane === 'remote' ? nav : null}
         />
       </div>
 

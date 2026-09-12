@@ -201,7 +201,8 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
                     }
                   }}
                   rows={1}
-                  placeholder="Ask Copilot…  (Enter to send, Shift+Enter for a new line)"
+                  placeholder="Ask Copilot…"
+                  title="Enter to send, Shift+Enter for a new line"
                   className="field max-h-32 flex-1 resize-none"
                 />
                 <button onClick={() => send(input)} disabled={busy || (!input.trim() && !attachment)} className="btn-primary shrink-0">
