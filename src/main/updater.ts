@@ -38,7 +38,7 @@ export function setupAutoUpdater(getWindow: () => BrowserWindow | null): void {
     if (msg.includes('code signature') || msg.includes('did not pass validation') || msg.includes('Could not get code signature')) {
       send({
         phase: 'error',
-        error: 'macOS otomatik güncellemesi kod imzası gerektiriyor. Yeni sürümü indirme sayfasından kur.',
+        error: 'macOS auto-update requires code signing. Install the new version from the download page.',
         manualOnly: true
       })
       return

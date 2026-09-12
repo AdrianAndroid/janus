@@ -50,7 +50,7 @@ export function encryptVault(plaintext: string, password: string): EncryptedFile
 
 /** Decrypt an encrypted vault file. Throws on wrong password / tampering. */
 export function decryptVault(file: EncryptedFile, password: string): string {
-  if (file.magic !== VAULT_MAGIC) throw new Error('Geçersiz vault dosyası (imza uyuşmuyor).')
+  if (file.magic !== VAULT_MAGIC) throw new Error('Invalid vault file (signature mismatch).')
   const salt = Buffer.from(file.kdf.salt, 'hex')
   const key = scryptSync(password, salt, file.kdf.keylen, {
     N: file.kdf.N,
@@ -66,7 +66,7 @@ export function decryptVault(file: EncryptedFile, password: string): string {
     const dec = Buffer.concat([decipher.update(Buffer.from(file.data, 'base64')), decipher.final()])
     return dec.toString('utf8')
   } catch {
-    throw new Error('Master parola hatalı ya da dosya bozulmuş.')
+    throw new Error('Incorrect master password or corrupted file.')
   }
 }
 

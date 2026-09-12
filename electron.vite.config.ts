@@ -34,7 +34,14 @@ export default defineConfig({
       }
     },
     plugins: [react()],
+    // noVNC uses top-level await, which the Electron renderer supports.
+    optimizeDeps: {
+      esbuildOptions: {
+        target: 'es2022'
+      }
+    },
     build: {
+      target: 'es2022',
       rollupOptions: {
         input: { index: resolve('src/renderer/index.html') }
       }

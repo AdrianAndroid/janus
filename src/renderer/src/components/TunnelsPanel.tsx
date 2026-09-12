@@ -52,7 +52,7 @@ export default function TunnelsPanel(): JSX.Element {
     if (t.type === 'remote')
       return (
         <span className="flex items-center gap-1.5 font-mono text-xs text-slate-400">
-          uzak:{t.remotePort} <ArrowRight size={12} /> {t.localHost}:{t.localPort}
+          remote:{t.remotePort} <ArrowRight size={12} /> {t.localHost}:{t.localPort}
         </span>
       )
     return <span className="font-mono text-xs text-slate-400">SOCKS5 proxy · localhost:{t.localPort}</span>
@@ -65,10 +65,10 @@ export default function TunnelsPanel(): JSX.Element {
           <h1 className="flex items-center gap-2 text-lg font-bold text-white">
             <Network size={20} className="text-accent" /> Port Forwarding
           </h1>
-          <p className="text-sm text-slate-500">Local, remote ve dynamic (SOCKS) SSH tünelleri.</p>
+          <p className="text-sm text-slate-500">Local, remote, and dynamic (SOCKS) SSH tunnels.</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary" disabled={servers.length === 0}>
-          <Plus size={16} /> Yeni Tünel
+          <Plus size={16} /> New Tunnel
         </button>
       </div>
 
@@ -76,7 +76,7 @@ export default function TunnelsPanel(): JSX.Element {
         {tunnels.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
             <Network size={48} className="mb-3 opacity-40" />
-            <p>{servers.length === 0 ? 'Önce bir sunucu eklemelisin.' : 'Henüz tünel yok.'}</p>
+            <p>{servers.length === 0 ? 'Add a server first.' : 'No tunnels yet.'}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -97,7 +97,7 @@ export default function TunnelsPanel(): JSX.Element {
                       <span className="chip uppercase">{t.type}</span>
                     </div>
                     {describe(t)}
-                    <div className="text-[11px] text-slate-500">via {server?.name ?? 'bilinmeyen sunucu'}</div>
+                    <div className="text-[11px] text-slate-500">via {server?.name ?? 'unknown server'}</div>
                   </div>
                   <button
                     onClick={() => toggle(t)}
@@ -105,15 +105,15 @@ export default function TunnelsPanel(): JSX.Element {
                     className={active ? 'btn-danger' : 'btn-primary'}
                   >
                     {pending === t.id ? <Loader2 size={14} className="animate-spin" /> : active ? <Square size={14} /> : <Play size={14} />}
-                    {active ? 'Durdur' : 'Başlat'}
+                    {active ? 'Stop' : 'Start'}
                   </button>
-                  <button onClick={() => setEditing(t)} className="rounded p-2 text-slate-400 hover:bg-ink-600" title="Düzenle">
+                  <button onClick={() => setEditing(t)} className="rounded p-2 text-slate-400 hover:bg-ink-600" title="Edit">
                     <Pencil size={15} />
                   </button>
                   <button
-                    onClick={() => confirm(`"${t.name}" silinsin mi?`) && deleteTunnel(t.id)}
+                    onClick={() => confirm(`Delete "${t.name}"?`) && deleteTunnel(t.id)}
                     className="rounded p-2 text-slate-400 hover:bg-bad hover:text-white"
-                    title="Sil"
+                    title="Delete"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -158,23 +158,23 @@ function TunnelForm({ rule, onClose }: { rule: TunnelRule | null; onClose: () =>
 
   return (
     <Modal
-      title={rule ? 'Tüneli Düzenle' : 'Yeni Tünel'}
+      title={rule ? 'Edit Tunnel' : 'New Tunnel'}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="btn-ghost">İptal</button>
-          <button onClick={save} disabled={!form.name.trim() || !form.serverId} className="btn-primary">Kaydet</button>
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
+          <button onClick={save} disabled={!form.name.trim() || !form.serverId} className="btn-primary">Save</button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">İsim *</label>
-            <input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="DB tüneli" />
+            <label className="label">Name *</label>
+            <input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="DB tunnel" />
           </div>
           <div>
-            <label className="label">Sunucu *</label>
+            <label className="label">Server *</label>
             <select value={form.serverId} onChange={(e) => set('serverId', e.target.value)} className="field">
               {servers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -183,21 +183,21 @@ function TunnelForm({ rule, onClose }: { rule: TunnelRule | null; onClose: () =>
           </div>
         </div>
         <div>
-          <label className="label">Tünel türü</label>
+          <label className="label">Tunnel type</label>
           <select value={form.type} onChange={(e) => set('type', e.target.value as TunnelType)} className="field">
-            <option value="local">Local (yerel port → uzak hedef)</option>
-            <option value="remote">Remote (uzak port → yerel hedef)</option>
+            <option value="local">Local (local port → remote target)</option>
+            <option value="remote">Remote (remote port → local target)</option>
             <option value="dynamic">Dynamic (SOCKS5 proxy)</option>
           </select>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Yerel host</label>
+            <label className="label">Local host</label>
             <input value={form.localHost} onChange={(e) => set('localHost', e.target.value)} className="field" />
           </div>
           <div>
-            <label className="label">Yerel port</label>
+            <label className="label">Local port</label>
             <input type="number" value={form.localPort} onChange={(e) => set('localPort', Number(e.target.value))} className="field" />
           </div>
         </div>
@@ -205,11 +205,11 @@ function TunnelForm({ rule, onClose }: { rule: TunnelRule | null; onClose: () =>
         {form.type !== 'dynamic' && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Uzak host</label>
+              <label className="label">Remote host</label>
               <input value={form.remoteHost} onChange={(e) => set('remoteHost', e.target.value)} className="field" />
             </div>
             <div>
-              <label className="label">Uzak port</label>
+              <label className="label">Remote port</label>
               <input type="number" value={form.remotePort} onChange={(e) => set('remotePort', Number(e.target.value))} className="field" />
             </div>
           </div>

@@ -103,14 +103,14 @@ export default function Workspace(): JSX.Element {
           <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }} />
           <div className="fixed z-50 w-48 rounded-lg border border-ink-500 bg-ink-700 py-1 text-xs shadow-2xl" style={{ left: menu.x, top: menu.y }}>
             <button onClick={() => { closeTab(menu.tabId); setMenu(null) }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-slate-200 hover:bg-ink-500">
-              <X size={13} /> Kapat
+              <X size={13} /> Close
             </button>
             <button onClick={() => { closeOtherTabs(menu.tabId); setMenu(null) }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-slate-200 hover:bg-ink-500">
-              <XCircle size={13} /> Diğerlerini kapat
+              <XCircle size={13} /> Close others
             </button>
             <div className="my-1 border-t border-ink-500" />
             <button onClick={() => { closeAllTabs(); setMenu(null) }} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-bad hover:bg-ink-500">
-              <ListX size={13} /> Tümünü kapat
+              <ListX size={13} /> Close all
             </button>
           </div>
         </>

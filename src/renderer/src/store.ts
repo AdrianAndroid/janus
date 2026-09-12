@@ -268,7 +268,7 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const src = v.servers.find((s) => s.id === id)
     if (!src) return
     const now = Date.now()
-    const copy: ServerProfile = { ...src, id: uuid(), name: `${src.name} (kopya)`, createdAt: now, updatedAt: now }
+    const copy: ServerProfile = { ...src, id: uuid(), name: `${src.name} (copy)`, createdAt: now, updatedAt: now }
     set({ vault: { ...v, servers: [...v.servers, copy] } })
     await get().persist()
   },
@@ -478,7 +478,7 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const v = get().vault
     const server = v?.servers.find((s) => s.id === serverId)
     if (!server) return
-    const tab: Tab = { id: uuid(), kind: 'docker', serverId, title: `Servisler · ${server.name}`, status: 'connecting' }
+    const tab: Tab = { id: uuid(), kind: 'docker', serverId, title: `Services · ${server.name}`, status: 'connecting' }
     set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
   },
 
@@ -486,7 +486,7 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const v = get().vault
     const server = v?.servers.find((s) => s.id === serverId)
     if (!server) return
-    const tab: Tab = { id: uuid(), kind: 'logs', serverId, title: `Loglar · ${server.name}`, status: 'connecting' }
+    const tab: Tab = { id: uuid(), kind: 'logs', serverId, title: `Logs · ${server.name}`, status: 'connecting' }
     set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
   },
 
@@ -494,7 +494,7 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const v = get().vault
     const server = v?.servers.find((s) => s.id === serverId)
     if (!server) return
-    const tab: Tab = { id: uuid(), kind: 'vnc', serverId, title: `Masaüstü · ${server.name}`, status: 'connecting' }
+    const tab: Tab = { id: uuid(), kind: 'vnc', serverId, title: `Desktop · ${server.name}`, status: 'connecting' }
     set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
   },
 

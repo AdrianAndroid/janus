@@ -26,7 +26,7 @@ function handle<T>(channel: string, fn: (...args: unknown[]) => Promise<T> | T):
 /** Look up a server profile by id from the in-memory vault. */
 function findServer(id: string): ServerProfile {
   const s = vaultStore.read().servers.find((x) => x.id === id)
-  if (!s) throw new Error('Sunucu bulunamadı.')
+  if (!s) throw new Error('Server not found.')
   return s
 }
 
@@ -85,7 +85,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle(IPC.vaultExport, async () => {
     const win = getWindow()
     const res = await dialog.showSaveDialog(win!, {
-      title: 'Vault dışa aktar',
+      title: 'Export vault',
       defaultPath: 'janus-export.vault.json',
       filters: [{ name: 'Janus Vault', extensions: ['json'] }]
     })
@@ -96,7 +96,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   handle(IPC.vaultImport, async (password) => {
     const win = getWindow()
     const res = await dialog.showOpenDialog(win!, {
-      title: 'Vault içe aktar',
+      title: 'Import vault',
       properties: ['openFile'],
       filters: [{ name: 'Janus Vault', extensions: ['json'] }]
     })
@@ -179,7 +179,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // ---- System integration (Touch ID) ----
   handle(IPC.touchIdAvailable, async () => process.platform === 'darwin' && systemPreferences.canPromptTouchID())
   handle(IPC.touchIdPrompt, async (reason) => {
-    await systemPreferences.promptTouchID((reason as string) || 'Janus kilidini aç')
+    await systemPreferences.promptTouchID((reason as string) || 'Unlock Janus')
     return true
   })
 

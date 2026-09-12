@@ -41,11 +41,11 @@ export default function VncPanel({ tab }: { tab: Tab }): JSX.Element {
           setPhase('closed')
           setTabStatus(tab.id, 'disconnected')
           const clean = (e as { detail?: { clean?: boolean } }).detail?.clean
-          if (!clean) setError('Bağlantı koptu. VNC sunucusu çalışıyor mu / port doğru mu?')
+          if (!clean) setError('Connection lost. Is the VNC server running / is the port correct?')
         })
         rfb.addEventListener('securityfailure', (e: unknown) => {
           const reason = (e as { detail?: { reason?: string } }).detail?.reason
-          setError('Kimlik doğrulama başarısız' + (reason ? `: ${reason}` : ' (VNC parolası?)'))
+          setError('Authentication failed' + (reason ? `: ${reason}` : ' (VNC password?)'))
         })
         rfbRef.current = rfb
       } catch (e) {
@@ -88,14 +88,14 @@ export default function VncPanel({ tab }: { tab: Tab }): JSX.Element {
             onClick={() => rfbRef.current?.sendCtrlAltDel()}
             disabled={phase !== 'connected'}
             className="btn-ghost border border-ink-500 px-2 py-1 text-xs"
-            title="Ctrl+Alt+Del gönder"
+            title="Send Ctrl+Alt+Del"
           >
             <Command size={13} /> Ctrl+Alt+Del
           </button>
-          <button onClick={toggleViewOnly} className="btn-ghost border border-ink-500 px-2 py-1 text-xs" title="Sadece izle">
-            {viewOnly ? <EyeOff size={13} /> : <Eye size={13} />} {viewOnly ? 'İzleme' : 'Kontrol'}
+          <button onClick={toggleViewOnly} className="btn-ghost border border-ink-500 px-2 py-1 text-xs" title="View only">
+            {viewOnly ? <EyeOff size={13} /> : <Eye size={13} />} {viewOnly ? 'Watching' : 'Control'}
           </button>
-          <button onClick={() => setAttempt((a) => a + 1)} className="btn-ghost border border-ink-500 px-2 py-1 text-xs" title="Yeniden bağlan">
+          <button onClick={() => setAttempt((a) => a + 1)} className="btn-ghost border border-ink-500 px-2 py-1 text-xs" title="Reconnect">
             <RotateCw size={13} />
           </button>
         </div>
@@ -110,7 +110,7 @@ export default function VncPanel({ tab }: { tab: Tab }): JSX.Element {
       <div className="relative min-h-0 flex-1">
         {phase === 'connecting' && !error && (
           <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 text-sm text-slate-500">
-            <Loader2 size={16} className="animate-spin" /> Masaüstüne bağlanılıyor (SSH tüneli üzerinden)…
+            <Loader2 size={16} className="animate-spin" /> Connecting to desktop (via SSH tunnel)…
           </div>
         )}
         <div ref={hostRef} className="h-full w-full" />

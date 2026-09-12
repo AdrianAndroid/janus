@@ -27,14 +27,14 @@ import Sparkline from './Sparkline'
 import type { ServerMetrics } from '@shared/types'
 
 function timeAgo(ts?: number): string {
-  if (!ts) return 'hiç'
+  if (!ts) return 'never'
   const diff = Date.now() - ts
   const m = Math.floor(diff / 60000)
-  if (m < 1) return 'az önce'
-  if (m < 60) return `${m} dk önce`
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h} saat önce`
-  return `${Math.floor(h / 24)} gün önce`
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
 }
 
 export default function ServerDetail(): JSX.Element {
@@ -47,17 +47,17 @@ export default function ServerDetail(): JSX.Element {
         <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-ink-700 text-accent">
           <Server size={40} />
         </div>
-        <h2 className="text-lg font-semibold text-slate-300">Janus'a hoş geldin</h2>
+        <h2 className="text-lg font-semibold text-slate-300">Welcome to Janus</h2>
         <p className="mt-1 max-w-sm text-sm">
-          Soldan bir sunucu seç ya da çift tıklayarak bağlan. Yeni sunucu eklemek için{' '}
-          <kbd className="rounded bg-ink-600 px-1.5 py-0.5 text-xs">+</kbd> butonunu kullan.
+          Select a server on the left or double-click to connect. Use the{' '}
+          <kbd className="rounded bg-ink-600 px-1.5 py-0.5 text-xs">+</kbd> button to add a new server.
         </p>
       </div>
     )
   }
 
   const auth =
-    server.authMethod === 'password' ? 'Parola' : server.authMethod === 'key' ? 'SSH Anahtarı' : 'SSH Agent'
+    server.authMethod === 'password' ? 'Password' : server.authMethod === 'key' ? 'SSH Key' : 'SSH Agent'
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -85,16 +85,16 @@ export default function ServerDetail(): JSX.Element {
 
       <div className="mb-6 flex gap-2">
         <button onClick={() => openTerminal(server.id)} className="btn-primary">
-          <TerminalIcon size={16} /> Terminal Aç
+          <TerminalIcon size={16} /> Open Terminal
         </button>
         <button onClick={() => openSftp(server.id)} className="btn-ghost border border-ink-500">
           <FolderTree size={16} /> SFTP
         </button>
         <button onClick={() => openDocker(server.id)} className="btn-ghost border border-ink-500">
-          <Box size={16} /> Servisler
+          <Box size={16} /> Services
         </button>
         <button onClick={() => openLogs(server.id)} className="btn-ghost border border-ink-500">
-          <ScrollText size={16} /> Loglar
+          <ScrollText size={16} /> Logs
         </button>
         <button onClick={() => openVnc(server.id)} className="btn-ghost border border-ink-500">
           <Monitor size={16} /> VNC
@@ -102,27 +102,27 @@ export default function ServerDetail(): JSX.Element {
         <button
           onClick={() => window.janus.rdp.launch(server.id).catch((e) => alert((e as Error).message))}
           className="btn-ghost border border-ink-500"
-          title="Windows uzak masaüstü"
+          title="Windows remote desktop"
         >
           <MonitorPlay size={16} /> RDP
         </button>
         <button onClick={() => openServerForm(server)} className="btn-ghost border border-ink-500">
-          <Pencil size={16} /> Düzenle
+          <Pencil size={16} /> Edit
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <InfoCard icon={Globe} label="Host" value={`${server.host}:${server.port}`} />
-        <InfoCard icon={User} label="Kullanıcı" value={server.username} />
-        <InfoCard icon={KeyRound} label="Kimlik doğrulama" value={auth} />
-        <InfoCard icon={Clock} label="Son bağlantı" value={timeAgo(server.lastConnectedAt)} />
+        <InfoCard icon={User} label="User" value={server.username} />
+        <InfoCard icon={KeyRound} label="Authentication" value={auth} />
+        <InfoCard icon={Clock} label="Last connected" value={timeAgo(server.lastConnectedAt)} />
       </div>
 
       <MetricsCard serverId={server.id} />
 
       {server.notes && (
         <div className="mt-6">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Notlar</h3>
+          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Notes</h3>
           <div className="whitespace-pre-wrap rounded-lg border border-ink-600 bg-ink-800 p-4 text-sm text-slate-300">
             {server.notes}
           </div>
@@ -163,9 +163,9 @@ function fmtUptime(sec?: number): string {
   const d = Math.floor(sec / 86400)
   const h = Math.floor((sec % 86400) / 3600)
   const m = Math.floor((sec % 3600) / 60)
-  if (d > 0) return `${d}g ${h}s`
-  if (h > 0) return `${h}s ${m}dk`
-  return `${m}dk`
+  if (d > 0) return `${d}d ${h}h`
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
 }
 
 /** 0..1 ratio → color + label tier. */
@@ -203,36 +203,36 @@ function MetricsCard({ serverId }: { serverId: string }): JSX.Element {
   const worst = Math.max(memRatio, diskRatio, loadRatio)
   const health = data?.reachable ? tier(worst) : { color: 'text-slate-500', bar: 'bg-slate-600' }
   const healthLabel = !data?.reachable
-    ? 'erişilemiyor'
+    ? 'unreachable'
     : worst >= 0.9
-      ? 'kritik'
+      ? 'critical'
       : worst >= 0.75
-        ? 'yüksek yük'
-        : 'sağlıklı'
+        ? 'high load'
+        : 'healthy'
 
   return (
     <div className="mt-6 rounded-xl border border-ink-600 bg-ink-800 p-5">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-          <Activity size={16} className="text-accent" /> Sistem Durumu
+          <Activity size={16} className="text-accent" /> System Status
           <span className={`flex items-center gap-1 text-xs font-medium ${health.color}`}>
             <span className={`h-2 w-2 rounded-full ${health.bar}`} /> {healthLabel}
           </span>
         </h3>
         <button onClick={load} disabled={loading} className="btn-ghost border border-ink-500 px-2 py-1 text-xs">
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Yenile
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
       {loading && !data && (
         <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
-          <Loader2 size={16} className="animate-spin" /> Metrikler alınıyor…
+          <Loader2 size={16} className="animate-spin" /> Loading metrics…
         </div>
       )}
 
       {data && !data.reachable && (
         <div className="flex items-center gap-2 rounded-md bg-bad/10 px-3 py-2 text-xs text-bad">
-          <AlertCircle size={14} /> {data.error || 'Sunucuya ulaşılamadı.'}
+          <AlertCircle size={14} /> {data.error || 'Could not reach the server.'}
         </div>
       )}
 
@@ -264,17 +264,17 @@ function MetricsCard({ serverId }: { serverId: string }): JSX.Element {
 
           <div className="flex items-center gap-2">
             <Cpu size={15} className="text-slate-500" />
-            <span className="text-xs text-slate-400">Yük (1·5·15dk)</span>
+            <span className="text-xs text-slate-400">Load (1·5·15m)</span>
             <span className={`font-mono text-sm ${tier(loadRatio).color}`}>
               {data.load ? data.load.map((l) => l.toFixed(2)).join('  ') : '—'}
             </span>
-            <span className="text-xs text-slate-600">/ {data.cpuCount ?? '?'} çekirdek</span>
+            <span className="text-xs text-slate-600">/ {data.cpuCount ?? '?'} cores</span>
           </div>
 
           <div className="grid grid-cols-3 gap-3 border-t border-ink-700 pt-3">
             <HistChart label="RAM" values={history(serverId).map((x) => x.mem)} color="#818cf8" />
             <HistChart label="Disk" values={history(serverId).map((x) => x.disk)} color="#fbbf24" />
-            <HistChart label="Yük" values={history(serverId).map((x) => x.cpu)} color="#34d399" />
+            <HistChart label="Load" values={history(serverId).map((x) => x.cpu)} color="#34d399" />
           </div>
         </div>
       )}
@@ -285,7 +285,7 @@ function MetricsCard({ serverId }: { serverId: string }): JSX.Element {
 function HistChart({ label, values, color }: { label: string; values: number[]; color: string }): JSX.Element {
   return (
     <div>
-      <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-600">{label} geçmişi</div>
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-600">{label} history</div>
       <div className="h-8 w-full">
         <Sparkline values={values} width={200} height={32} color={color} threshold={0.9} />
       </div>

@@ -14,7 +14,7 @@ export async function importSshConfig(): Promise<ParsedSshHost[]> {
   try {
     raw = await readFile(configPath(), 'utf8')
   } catch {
-    throw new Error('~/.ssh/config bulunamadı.')
+    throw new Error('~/.ssh/config not found.')
   }
 
   const lines = raw.split('\n')
@@ -99,7 +99,7 @@ export async function exportSshConfig(servers: ServerProfile[]): Promise<string>
     })
     .join('\n\n')
 
-  const managed = `${MARK_START}\n# Bu blok Janus tarafından yönetilir — elle düzenleme kalıcı olmayabilir.\n\n${block}\n\n${MARK_END}\n`
+  const managed = `${MARK_START}\n# This block is managed by Janus — manual edits may not persist.\n\n${block}\n\n${MARK_END}\n`
   const next = (existing.trimEnd() + '\n\n' + managed).trimStart()
   await writeFile(path, next, { encoding: 'utf8', mode: 0o600 })
   return path

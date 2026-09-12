@@ -61,7 +61,7 @@ export default function LogsPanel({ tab }: { tab: Tab }): JSX.Element {
       if (p.status === 'error') {
         setRunning(false)
         setTabStatus(tab.id, 'error')
-        bufRef.current.push(`✖ ${p.message || 'akış hatası'}`)
+        bufRef.current.push(`✖ ${p.message || 'stream error'}`)
       }
     })
     cleanupRef.current = () => {
@@ -105,7 +105,7 @@ export default function LogsPanel({ tab }: { tab: Tab }): JSX.Element {
               {p.label}
             </option>
           ))}
-          <option value="">özel…</option>
+          <option value="">custom…</option>
         </select>
         <input
           value={cmd}
@@ -116,11 +116,11 @@ export default function LogsPanel({ tab }: { tab: Tab }): JSX.Element {
         />
         {running ? (
           <button onClick={stop} className="btn-danger px-3 py-1.5 text-xs">
-            <Square size={13} /> Durdur
+            <Square size={13} /> Stop
           </button>
         ) : (
           <button onClick={start} className="btn-primary px-3 py-1.5 text-xs">
-            <Play size={13} /> Başlat
+            <Play size={13} /> Start
           </button>
         )}
       </div>
@@ -129,22 +129,22 @@ export default function LogsPanel({ tab }: { tab: Tab }): JSX.Element {
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="filtre (canlı)…"
+          placeholder="filter (live)…"
           className="field flex-1 py-1 text-xs"
         />
         <label className="flex shrink-0 items-center gap-1 text-[11px] text-slate-400">
-          <ArrowDownToLine size={12} /> oto-kaydır
+          <ArrowDownToLine size={12} /> auto-scroll
           <input type="checkbox" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} className="h-3.5 w-3.5 accent-accent" />
         </label>
-        <button onClick={() => setLines([])} className="btn-ghost px-2 py-1 text-xs" title="Temizle">
+        <button onClick={() => setLines([])} className="btn-ghost px-2 py-1 text-xs" title="Clear">
           <Trash2 size={13} />
         </button>
-        <span className="shrink-0 text-[11px] text-slate-600">{shown.length} satır</span>
+        <span className="shrink-0 text-[11px] text-slate-600">{shown.length} lines</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto bg-black/40 p-3 font-mono text-xs leading-relaxed">
         {shown.length === 0 ? (
-          <div className="py-10 text-center text-slate-600">{running ? 'akış bekleniyor…' : 'Başlat\'a bas.'}</div>
+          <div className="py-10 text-center text-slate-600">{running ? 'waiting for stream…' : 'Press Start.'}</div>
         ) : (
           shown.map((l, i) => (
             <div key={i} className={`whitespace-pre-wrap ${lineColor(l)}`}>

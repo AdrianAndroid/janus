@@ -56,7 +56,7 @@ export default function BroadcastPanel(): JSX.Element {
       })
     )
     setRunning(false)
-    notify('Broadcast tamamlandı', `${ids.length} sunucuda "${command}" çalıştırıldı.`)
+    notify('Broadcast complete', `Ran "${command}" on ${ids.length} servers.`)
   }
 
   return (
@@ -64,9 +64,9 @@ export default function BroadcastPanel(): JSX.Element {
       {/* Server selector */}
       <div className="flex w-64 shrink-0 flex-col border-r border-ink-600">
         <div className="flex items-center justify-between border-b border-ink-600 px-3 py-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Hedef sunucular</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Target servers</span>
           <button onClick={toggleAll} className="text-xs text-accent hover:underline">
-            {allSelected ? 'Hiçbiri' : 'Tümü'}
+            {allSelected ? 'None' : 'All'}
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
@@ -91,30 +91,30 @@ export default function BroadcastPanel(): JSX.Element {
               <ServerCheck key={s.id} name={s.name} host={s.host} checked={selected.has(s.id)} onToggle={() => toggle(s.id)} />
             ))}
         </div>
-        <div className="border-t border-ink-600 px-3 py-2 text-[11px] text-slate-500">{selected.size} seçili</div>
+        <div className="border-t border-ink-600 px-3 py-2 text-[11px] text-slate-500">{selected.size} selected</div>
       </div>
 
       {/* Command + results */}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="border-b border-ink-600 p-4">
           <h1 className="mb-3 flex items-center gap-2 text-lg font-bold text-white">
-            <Radio size={20} className="text-accent" /> Broadcast — çoklu çalıştırma
+            <Radio size={20} className="text-accent" /> Broadcast — run on multiple servers
           </h1>
           <div className="flex gap-2">
             <input
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && run()}
-              placeholder="örn: uptime && df -h /"
+              placeholder="e.g. uptime && df -h /"
               className="field flex-1 font-mono"
             />
             <button onClick={run} disabled={running || !command.trim() || selected.size === 0} className="btn-primary shrink-0">
               {running ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              {selected.size} sunucuda çalıştır
+              Run on {selected.size} servers
             </button>
           </div>
           <p className="mt-2 text-[11px] text-slate-600">
-            ⚠️ Komut seçili tüm sunucularda aynı anda çalışır. Yıkıcı komutlara dikkat.
+            ⚠️ The command runs on all selected servers at the same time. Be careful with destructive commands.
           </p>
         </div>
 
@@ -122,7 +122,7 @@ export default function BroadcastPanel(): JSX.Element {
           {Object.keys(results).length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center text-slate-500">
               <Radio size={44} className="mb-3 opacity-40" />
-              <p>Soldan sunucu seç, komutu yaz, çalıştır. Çıktılar burada yan yana gelir.</p>
+              <p>Select servers on the left, type a command, and run it. Outputs appear here side by side.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
@@ -176,10 +176,10 @@ function ResultCard({ name, r }: { name: string; r: Result }): JSX.Element {
           <XCircle size={14} className="text-bad" />
         )}
         <span className="flex-1 truncate text-sm font-medium text-slate-200">{name}</span>
-        {r.status === 'done' && <span className="text-[11px] text-slate-500">çıkış {r.code} · {r.ms}ms</span>}
+        {r.status === 'done' && <span className="text-[11px] text-slate-500">exit {r.code} · {r.ms}ms</span>}
       </div>
       <pre className="max-h-60 overflow-auto bg-black/40 p-3 font-mono text-xs text-slate-300">
-        {r.status === 'running' ? 'çalışıyor…' : r.error ? `✖ ${r.error}` : out || '(çıktı yok)'}
+        {r.status === 'running' ? 'running…' : r.error ? `✖ ${r.error}` : out || '(no output)'}
       </pre>
     </div>
   )

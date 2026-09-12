@@ -32,7 +32,7 @@ export default function LockScreen(): JSX.Element {
     setError(null)
     setBusy(true)
     try {
-      await window.janus.system.touchIdPrompt('Janus kilidini aç')
+      await window.janus.system.touchIdPrompt('Unlock Janus')
       const vault = await window.janus.vault.autoUnlock()
       useStore.setState({ vault, locked: false, hasVault: true })
     } catch (err) {
@@ -46,8 +46,8 @@ export default function LockScreen(): JSX.Element {
     e.preventDefault()
     setError(null)
     if (isCreate) {
-      if (password.length < 4) return setError('Parola en az 4 karakter olmalı.')
-      if (password !== confirm) return setError('Parolalar eşleşmiyor.')
+      if (password.length < 4) return setError('Master password must be at least 4 characters.')
+      if (password !== confirm) return setError('Passwords do not match.')
     }
     setBusy(true)
     try {
@@ -62,7 +62,7 @@ export default function LockScreen(): JSX.Element {
 
   async function importVault(): Promise<void> {
     setError(null)
-    if (!password) return setError('İçe aktarmak için dosyanın parolasını girin.')
+    if (!password) return setError('Enter the vault file password to import.')
     setBusy(true)
     try {
       const res = await window.janus.vault.import(password)
@@ -92,19 +92,19 @@ export default function LockScreen(): JSX.Element {
           />
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-white">
-              {isCreate ? 'Vault oluştur' : 'Tekrar hoş geldin'}
+              {isCreate ? 'Create your vault' : 'Welcome back'}
             </h1>
             <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500">
               {isCreate
-                ? 'Tüm sunucuların tek bir şifreli dosyada saklanır.'
-                : 'Sunucularına erişmek için master parolanı gir.'}
+                ? 'All your servers are stored in a single encrypted file.'
+                : 'Enter your master password to access your servers.'}
             </p>
           </div>
         </div>
 
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <label className="label">Master Parola</label>
+            <label className="label">Master Password</label>
             <div className="relative">
               <KeyRound size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
@@ -120,7 +120,7 @@ export default function LockScreen(): JSX.Element {
 
           {isCreate && (
             <div>
-              <label className="label">Parolayı Doğrula</label>
+              <label className="label">Confirm Master Password</label>
               <input
                 type="password"
                 value={confirm}
@@ -145,30 +145,30 @@ export default function LockScreen(): JSX.Element {
               onChange={(e) => setRemember(e.target.checked)}
               className="h-4 w-4 accent-accent"
             />
-            Bu cihazda beni hatırla (otomatik giriş)
+            Remember me on this device (automatic sign-in)
           </label>
 
           <button type="submit" disabled={busy} className="btn-primary w-full">
-            {busy ? 'Lütfen bekle…' : isCreate ? 'Vault Oluştur' : 'Kilidi Aç'}
+            {busy ? 'Please wait…' : isCreate ? 'Create Vault' : 'Unlock'}
           </button>
         </form>
 
         {touchOk && (
           <button onClick={touchUnlock} disabled={busy} className="btn-ghost mt-3 w-full border border-ink-500">
-            <Fingerprint size={16} /> Touch ID ile aç
+            <Fingerprint size={16} /> Unlock with Touch ID
           </button>
         )}
 
         <div className="mt-4 border-t border-ink-600 pt-4">
           <button onClick={importVault} disabled={busy} className="btn-ghost w-full text-xs">
-            <Upload size={14} /> Mevcut bir vault dosyası içe aktar
+            <Upload size={14} /> Import an existing vault file
           </button>
         </div>
 
         {isCreate && (
           <p className="mt-5 text-center text-[11px] leading-relaxed text-slate-600">
-            Master parolanı unutursan kayıtlarına erişemezsin. Parola cihazından çıkmaz;
-            yalnızca dosyayı AES-256-GCM ile şifreler.
+            If you forget your master password, you will lose access to your data. The password never
+            leaves your device; it only encrypts the file with AES-256-GCM.
           </p>
         )}
       </div>

@@ -40,13 +40,13 @@ export function checkAlerts(
   const checks: [string, number][] = [
     ['RAM', r.mem],
     ['Disk', r.disk],
-    ['CPU yükü', r.cpu]
+    ['CPU load', r.cpu]
   ]
   for (const [label, ratio] of checks) {
     const key = `${id}:${label}`
     const over = ratio >= ALERT
     if (over && !alertState[key]) {
-      notify(`⚠️ ${name} — yüksek ${label}`, `${label} %${Math.round(ratio * 100)} (eşik %${ALERT * 100} aşıldı).`)
+      notify(`⚠️ ${name} — high ${label}`, `${label} ${Math.round(ratio * 100)}% (threshold ${ALERT * 100}% exceeded).`)
     }
     alertState[key] = over
   }

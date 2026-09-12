@@ -24,12 +24,12 @@ export default function SnippetsPanel(): JSX.Element {
       <div className="flex items-center justify-between border-b border-ink-600 px-6 py-4">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold text-white">
-            <Code2 size={20} className="text-accent" /> Snippet Kütüphanesi
+            <Code2 size={20} className="text-accent" /> Snippet Library
           </h1>
-          <p className="text-sm text-slate-500">Sık kullandığın komutları kaydet, tek tıkla bir sunucuda çalıştır.</p>
+          <p className="text-sm text-slate-500">Save frequently used commands and run them on a server with one click.</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary">
-          <Plus size={16} /> Yeni Snippet
+          <Plus size={16} /> New Snippet
         </button>
       </div>
 
@@ -37,9 +37,9 @@ export default function SnippetsPanel(): JSX.Element {
         {snippets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
             <Code2 size={48} className="mb-3 opacity-40" />
-            <p>Henüz snippet yok.</p>
+            <p>No snippets yet.</p>
             <button onClick={() => setCreating(true)} className="mt-2 text-accent hover:underline">
-              İlk snippet'ini oluştur →
+              Create your first snippet →
             </button>
           </div>
         ) : (
@@ -52,19 +52,19 @@ export default function SnippetsPanel(): JSX.Element {
                     {s.description && <p className="truncate text-xs text-slate-500">{s.description}</p>}
                   </div>
                   <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100">
-                    <button onClick={() => setRunOn(s)} className="rounded p-1.5 text-good hover:bg-ink-600" title="Çalıştır">
+                    <button onClick={() => setRunOn(s)} className="rounded p-1.5 text-good hover:bg-ink-600" title="Run">
                       <Play size={14} />
                     </button>
-                    <button onClick={() => copy(s)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Kopyala">
+                    <button onClick={() => copy(s)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Copy">
                       {copied === s.id ? <Check size={14} className="text-good" /> : <Copy size={14} />}
                     </button>
-                    <button onClick={() => setEditing(s)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Düzenle">
+                    <button onClick={() => setEditing(s)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Edit">
                       <Pencil size={14} />
                     </button>
                     <button
-                      onClick={() => confirm(`"${s.name}" silinsin mi?`) && deleteSnippet(s.id)}
+                      onClick={() => confirm(`Delete "${s.name}"?`) && deleteSnippet(s.id)}
                       className="rounded p-1.5 text-slate-400 hover:bg-bad hover:text-white"
-                      title="Sil"
+                      title="Delete"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -118,30 +118,30 @@ function SnippetForm({ snippet, onClose }: { snippet: Snippet | null; onClose: (
 
   return (
     <Modal
-      title={snippet ? 'Snippet Düzenle' : 'Yeni Snippet'}
+      title={snippet ? 'Edit Snippet' : 'New Snippet'}
       onClose={onClose}
       footer={
         <>
-          <button onClick={onClose} className="btn-ghost">İptal</button>
-          <button onClick={save} disabled={!form.name.trim() || !form.command.trim()} className="btn-primary">Kaydet</button>
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
+          <button onClick={save} disabled={!form.name.trim() || !form.command.trim()} className="btn-primary">Save</button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <label className="label">İsim *</label>
-          <input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" placeholder="Disk kullanımı" />
+          <label className="label">Name *</label>
+          <input autoFocus value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="field" placeholder="Disk usage" />
         </div>
         <div>
-          <label className="label">Açıklama</label>
-          <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" placeholder="Opsiyonel açıklama" />
+          <label className="label">Description</label>
+          <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="field" placeholder="Optional description" />
         </div>
         <div>
-          <label className="label">Komut *</label>
+          <label className="label">Command *</label>
           <textarea value={form.command} onChange={(e) => setForm({ ...form, command: e.target.value })} className="field h-28 font-mono text-xs" placeholder="df -h" />
         </div>
         <div>
-          <label className="label">Etiketler</label>
+          <label className="label">Tags</label>
           <div className="mb-2 flex flex-wrap gap-1">
             {form.tags.map((t) => (
               <span key={t} className="chip">
@@ -162,7 +162,7 @@ function SnippetForm({ snippet, onClose }: { snippet: Snippet | null; onClose: (
               }
             }}
             className="field"
-            placeholder="Etiket ekle ve Enter'a bas"
+            placeholder="Add a tag and press Enter"
           />
         </div>
       </div>
@@ -195,21 +195,21 @@ function RunModal({ snippet, onClose }: { snippet: Snippet; onClose: () => void 
 
   return (
     <Modal
-      title={`Çalıştır: ${snippet.name}`}
+      title={`Run: ${snippet.name}`}
       onClose={onClose}
       width={620}
       footer={
         <>
-          <button onClick={onClose} className="btn-ghost">Kapat</button>
+          <button onClick={onClose} className="btn-ghost">Close</button>
           <button onClick={run} disabled={!serverId || running} className="btn-primary">
-            {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} Çalıştır
+            {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} Run
           </button>
         </>
       }
     >
       <div className="space-y-3">
         <div>
-          <label className="label">Hangi sunucuda?</label>
+          <label className="label">Run on which server?</label>
           <select value={serverId} onChange={(e) => setServerId(e.target.value)} className="field">
             {servers.map((s) => (
               <option key={s.id} value={s.id}>
@@ -222,9 +222,9 @@ function RunModal({ snippet, onClose }: { snippet: Snippet; onClose: () => void 
         {error && <div className="rounded-md bg-bad/10 px-3 py-2 text-xs text-bad">{error}</div>}
         {output !== null && (
           <div>
-            <label className="label flex items-center gap-1"><Terminal size={12} /> Çıktı</label>
+            <label className="label flex items-center gap-1"><Terminal size={12} /> Output</label>
             <pre className="max-h-72 overflow-auto rounded-lg border border-ink-600 bg-black p-3 font-mono text-xs text-slate-200">
-              {output || '(çıktı yok)'}
+              {output || '(no output)'}
             </pre>
           </div>
         )}

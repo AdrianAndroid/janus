@@ -90,9 +90,9 @@ export default function TerminalView({
     // Immediate feedback so the connecting phase never looks frozen.
     const dim = (s: string): void => term.writeln(`\x1b[38;5;245m${s}\x1b[0m`)
     dim(`╭─ Janus · ${server?.name ?? ''}`)
-    dim(`│  ${target} üzerine bağlanılıyor…`)
-    if (server?.jumpHostId) dim('│  jump host üzerinden')
-    dim('│  SSH anahtarı/parola doğrulanıyor…')
+    dim(`│  Connecting to ${target}…`)
+    if (server?.jumpHostId) dim('│  via jump host')
+    dim('│  Verifying SSH key/password…')
     const t0 = Date.now()
 
     const autoReconnect = vault?.settings.autoReconnect ?? true
@@ -113,22 +113,22 @@ export default function TerminalView({
       if (p.status === 'connected') {
         attempts = 0
         setDead(false)
-        dim(`╰─ \x1b[32m● bağlandı\x1b[38;5;245m (${Date.now() - t0} ms)\x1b[0m\r\n`)
+        dim(`╰─ \x1b[32m● connected\x1b[38;5;245m (${Date.now() - t0} ms)\x1b[0m\r\n`)
       }
       if (p.status === 'error' && p.message) {
-        term.writeln(`╰─ \x1b[31m✖ Bağlantı hatası: ${p.message}\x1b[0m`)
+        term.writeln(`╰─ \x1b[31m✖ Connection error: ${p.message}\x1b[0m`)
         setDead(true)
       }
       if (p.status === 'disconnected' && !disposed) {
         if (autoReconnect && attempts < 5) {
           attempts++
           const delay = Math.min(2000 * attempts, 10000)
-          term.writeln(`\r\n\x1b[33m⚠ Bağlantı koptu. ${delay / 1000}sn içinde yeniden bağlanılıyor… (deneme ${attempts}/5)\x1b[0m`)
+          term.writeln(`\r\n\x1b[33m⚠ Connection lost. Reconnecting in ${delay / 1000}s… (attempt ${attempts}/5)\x1b[0m`)
           reconnectTimer = setTimeout(doConnect, delay)
         } else {
           setDead(true)
           term.writeln(
-            `\r\n\x1b[33m⚠ Bağlantı kapandı.\x1b[0m${autoReconnect ? ' \x1b[38;5;245m(yeniden deneme limitine ulaşıldı)\x1b[0m' : ''}`
+            `\r\n\x1b[33m⚠ Connection closed.\x1b[0m${autoReconnect ? ' \x1b[38;5;245m(reconnect limit reached)\x1b[0m' : ''}`
           )
         }
       }
@@ -139,7 +139,7 @@ export default function TerminalView({
       if (disposed) return
       attempts = 0
       clearTimeout(reconnectTimer)
-      dim('\r\n↻ Uykudan dönüldü, yeniden bağlanılıyor…')
+      dim('\r\n↻ Woke from sleep, reconnecting…')
       window.janus.ssh.disconnect(sessionId)
       reconnectTimer = setTimeout(doConnect, 500)
     })
@@ -200,7 +200,7 @@ export default function TerminalView({
                 termRef.current?.focus()
               }
             }}
-            placeholder="Terminalde ara…"
+            placeholder="Search terminal…"
             className="w-44 bg-transparent px-1 py-1 text-sm text-slate-100 outline-none placeholder:text-slate-600"
           />
           <button onClick={() => searchRef.current?.findPrevious(query, SEARCH_OPTS)} className="rounded p-1 text-slate-400 hover:bg-ink-600">
@@ -223,7 +223,7 @@ export default function TerminalView({
             }}
             className="btn-primary shadow-lg"
           >
-            <RotateCw size={15} /> Yeniden bağlan
+            <RotateCw size={15} /> Reconnect
           </button>
         </div>
       )}

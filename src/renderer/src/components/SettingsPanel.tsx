@@ -32,7 +32,7 @@ export default function SettingsPanel(): JSX.Element {
     <div className="flex h-full flex-col bg-ink-900">
       <div className="border-b border-ink-600 px-6 py-4">
         <h1 className="flex items-center gap-2 text-lg font-bold text-white">
-          <Settings size={20} className="text-accent" /> Ayarlar
+          <Settings size={20} className="text-accent" /> Settings
         </h1>
       </div>
 
@@ -48,15 +48,15 @@ export default function SettingsPanel(): JSX.Element {
           <SessionSection />
 
           {/* Terminal appearance */}
-          <Section icon={Type} title="Terminal Görünümü">
-            <Row label="Yazı tipi">
+          <Section icon={Type} title="Terminal Appearance">
+            <Row label="Font family">
               <input
                 value={s.fontFamily}
                 onChange={(e) => updateSettings({ fontFamily: e.target.value })}
                 className="field"
               />
             </Row>
-            <Row label="Font boyutu">
+            <Row label="Font size">
               <input
                 type="number"
                 min={8}
@@ -66,14 +66,14 @@ export default function SettingsPanel(): JSX.Element {
                 className="field"
               />
             </Row>
-            <Row label="İmleç stili">
+            <Row label="Cursor style">
               <select value={s.cursorStyle} onChange={(e) => updateSettings({ cursorStyle: e.target.value as never })} className="field">
-                <option value="bar">Çizgi</option>
-                <option value="block">Blok</option>
-                <option value="underline">Alt çizgi</option>
+                <option value="bar">Bar</option>
+                <option value="block">Block</option>
+                <option value="underline">Underline</option>
               </select>
             </Row>
-            <Row label="Geçmiş satır sayısı (scrollback)">
+            <Row label="Scrollback lines">
               <input
                 type="number"
                 value={s.scrollback}
@@ -88,7 +88,7 @@ export default function SettingsPanel(): JSX.Element {
                 onChange={(e) => updateSettings({ cursorBlink: e.target.checked })}
                 className="h-4 w-4 accent-accent"
               />
-              İmleç yanıp sönsün
+              Cursor blink
             </label>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
               <input
@@ -97,7 +97,7 @@ export default function SettingsPanel(): JSX.Element {
                 onChange={(e) => updateSettings({ autoReconnect: e.target.checked })}
                 className="h-4 w-4 accent-accent"
               />
-              Bağlantı koparsa otomatik yeniden bağlan
+              Automatically reconnect if the connection drops
             </label>
           </Section>
 
@@ -124,10 +124,10 @@ function AboutSection(): JSX.Element {
   useEffect(() => {
     window.janus.updates.version().then(setVersion).catch(() => undefined)
     const off = window.janus.updates.onStatus((s) => {
-      if (s.phase === 'checking') setNote('Kontrol ediliyor…')
-      else if (s.phase === 'not-available') setNote('En güncel sürümü kullanıyorsun ✓')
-      else if (s.phase === 'available') setNote(`Yeni sürüm mevcut: v${s.version}`)
-      else if (s.phase === 'error') setNote(`Hata: ${s.error}`)
+      if (s.phase === 'checking') setNote('Checking…')
+      else if (s.phase === 'not-available') setNote("You're on the latest version ✓")
+      else if (s.phase === 'available') setNote(`New version available: v${s.version}`)
+      else if (s.phase === 'error') setNote(`Error: ${s.error}`)
       else setNote(null)
       if (s.phase !== 'checking') setChecking(false)
     })
@@ -136,29 +136,29 @@ function AboutSection(): JSX.Element {
 
   async function check(): Promise<void> {
     setChecking(true)
-    setNote('Kontrol ediliyor…')
+    setNote('Checking…')
     try {
       await window.janus.updates.check()
     } catch (e) {
-      setNote(`Hata: ${(e as Error).message}`)
+      setNote(`Error: ${(e as Error).message}`)
       setChecking(false)
     }
   }
 
   return (
-    <Section icon={ShieldCheck} title="Hakkında & Güncellemeler">
+    <Section icon={ShieldCheck} title="About & Updates">
       <p className="text-sm text-slate-400">
-        <strong className="text-slate-200">Janus</strong> — profesyonel SSH ve sunucu yöneticisi.
+        <strong className="text-slate-200">Janus</strong> — professional SSH and server manager.
         <br />
-        Tüm verilerin tek bir AES-256-GCM ile şifreli dosyada saklanır. Şifren cihazından asla çıkmaz.
+        All your data is stored in a single AES-256-GCM encrypted file. Your password never leaves your device.
       </p>
       <div className="mt-3 flex items-center justify-between rounded-lg border border-ink-600 bg-ink-900/50 px-4 py-3">
         <div>
-          <div className="text-[11px] uppercase tracking-wide text-slate-500">Yüklü sürüm</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-500">Installed version</div>
           <div className="font-mono text-sm text-slate-200">v{version}</div>
         </div>
         <button onClick={check} disabled={checking} className="btn-ghost border border-ink-500">
-          <RefreshCw size={15} className={checking ? 'animate-spin' : ''} /> Güncellemeleri kontrol et
+          <RefreshCw size={15} className={checking ? 'animate-spin' : ''} /> Check for updates
         </button>
       </div>
       {note && <p className="mt-2 text-xs text-slate-500">{note}</p>}
@@ -189,7 +189,7 @@ function VaultSection(): JSX.Element {
     setMsg(null)
     try {
       await window.janus.vault.changePassword(oldP, newP)
-      setMsg({ type: 'ok', text: 'Master parola güncellendi.' })
+      setMsg({ type: 'ok', text: 'Master password updated.' })
       setOldP('')
       setNewP('')
     } catch (e) {
@@ -201,7 +201,7 @@ function VaultSection(): JSX.Element {
     setMsg(null)
     try {
       const path = await window.janus.vault.export()
-      if (path) setMsg({ type: 'ok', text: `Dışa aktarıldı: ${path}` })
+      if (path) setMsg({ type: 'ok', text: `Exported: ${path}` })
     } catch (e) {
       setMsg({ type: 'err', text: (e as Error).message })
     }
@@ -209,12 +209,12 @@ function VaultSection(): JSX.Element {
 
   async function importVault(): Promise<void> {
     setMsg(null)
-    if (!importPw) return setMsg({ type: 'err', text: 'İçe aktarılacak dosyanın parolasını gir.' })
+    if (!importPw) return setMsg({ type: 'err', text: 'Enter the password of the file to import.' })
     try {
       const res = await window.janus.vault.import(importPw)
       if (res) {
         useStore.setState({ vault: res })
-        setMsg({ type: 'ok', text: 'Vault içe aktarıldı.' })
+        setMsg({ type: 'ok', text: 'Vault imported.' })
         setImportPw('')
       }
     } catch (e) {
@@ -223,28 +223,28 @@ function VaultSection(): JSX.Element {
   }
 
   return (
-    <Section icon={KeyRound} title="Vault & Güvenlik">
+    <Section icon={KeyRound} title="Vault & Security">
       <div className="space-y-3">
-        <p className="text-xs text-slate-500">Master parolayı değiştir:</p>
+        <p className="text-xs text-slate-500">Change master password:</p>
         <div className="grid grid-cols-2 gap-3">
-          <input type="password" value={oldP} onChange={(e) => setOldP(e.target.value)} className="field" placeholder="Mevcut parola" />
-          <input type="password" value={newP} onChange={(e) => setNewP(e.target.value)} className="field" placeholder="Yeni parola" />
+          <input type="password" value={oldP} onChange={(e) => setOldP(e.target.value)} className="field" placeholder="Current password" />
+          <input type="password" value={newP} onChange={(e) => setNewP(e.target.value)} className="field" placeholder="New password" />
         </div>
         <button onClick={changePw} disabled={!oldP || !newP} className="btn-ghost border border-ink-500">
-          <KeyRound size={15} /> Parolayı Güncelle
+          <KeyRound size={15} /> Update Password
         </button>
       </div>
 
       <div className="mt-4 border-t border-ink-600 pt-4">
-        <p className="mb-2 text-xs text-slate-500">Yedekleme — şifreli, taşınabilir tek dosya:</p>
+        <p className="mb-2 text-xs text-slate-500">Backup — a single encrypted, portable file:</p>
         <div className="flex flex-wrap gap-2">
           <button onClick={exportVault} className="btn-ghost border border-ink-500">
-            <Download size={15} /> Dışa Aktar
+            <Download size={15} /> Export
           </button>
           <div className="flex gap-2">
-            <input type="password" value={importPw} onChange={(e) => setImportPw(e.target.value)} className="field w-44" placeholder="Dosya parolası" />
+            <input type="password" value={importPw} onChange={(e) => setImportPw(e.target.value)} className="field w-44" placeholder="File password" />
             <button onClick={importVault} className="btn-ghost border border-ink-500">
-              <Upload size={15} /> İçe Aktar
+              <Upload size={15} /> Import
             </button>
           </div>
         </div>
@@ -270,8 +270,8 @@ const AI_KEY_HINT: Record<AiProvider, string> = {
   anthropic: 'console.anthropic.com → API keys',
   openai: 'platform.openai.com → API keys',
   google: 'aistudio.google.com → API key',
-  openrouter: 'openrouter.ai/keys — tek anahtarla Claude, GPT, Gemini, Llama…',
-  custom: 'Ollama/LM Studio için anahtar gerekmez'
+  openrouter: 'openrouter.ai/keys — Claude, GPT, Gemini, Llama with a single key…',
+  custom: 'No key required for Ollama/LM Studio'
 }
 const AI_KEY_URL: Partial<Record<AiProvider, string>> = {
   anthropic: 'https://console.anthropic.com/settings/keys',
@@ -287,11 +287,11 @@ function AiSection(): JSX.Element {
   return (
     <Section icon={Sparkles} title="AI Copilot">
       <p className="text-xs text-slate-500">
-        Kendi API anahtarınla çalışır — anahtar şifreli vault'ta saklanır, istekler doğrudan sağlayıcıya gider.
+        Works with your own API key — the key is stored in the encrypted vault, requests go directly to the provider.
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="label">Sağlayıcı</label>
+          <label className="label">Provider</label>
           <select
             value={ai.provider}
             onChange={(e) => {
@@ -303,8 +303,8 @@ function AiSection(): JSX.Element {
             <option value="anthropic">Anthropic (Claude)</option>
             <option value="openai">OpenAI (GPT)</option>
             <option value="google">Google (Gemini)</option>
-            <option value="openrouter">OpenRouter (çoğu model)</option>
-            <option value="custom">Özel / Ollama (OpenAI uyumlu)</option>
+            <option value="openrouter">OpenRouter (most models)</option>
+            <option value="custom">Custom / Ollama (OpenAI compatible)</option>
           </select>
         </div>
         <div>
@@ -325,10 +325,10 @@ function AiSection(): JSX.Element {
       )}
       <div>
         <label className="label flex items-center justify-between">
-          <span>API anahtarı {ai.provider === 'custom' && <span className="text-slate-600">(opsiyonel)</span>}</span>
+          <span>API key {ai.provider === 'custom' && <span className="text-slate-600">(optional)</span>}</span>
           {AI_KEY_URL[ai.provider] && (
             <button onClick={() => window.open(AI_KEY_URL[ai.provider])} className="normal-case text-accent hover:underline">
-              🔗 Anahtar al
+              🔗 Get a key
             </button>
           )}
         </label>
@@ -340,10 +340,10 @@ function AiSection(): JSX.Element {
           placeholder={ai.provider === 'anthropic' ? 'sk-ant-…' : ai.provider === 'google' ? 'AIza…' : 'sk-…'}
         />
       </div>
-      <p className="text-[11px] text-slate-600">Anahtar: {AI_KEY_HINT[ai.provider]}</p>
+      <p className="text-[11px] text-slate-600">Key: {AI_KEY_HINT[ai.provider]}</p>
       <div className="rounded-md border border-ink-600 bg-ink-900/40 px-3 py-2 text-[11px] text-slate-500">
-        💡 <b className="text-slate-400">En kolayı:</b> <b className="text-accent">OpenRouter</b> — tek anahtarla Claude,
-        GPT, Gemini, Llama hepsi. Ya da <b className="text-accent">Ollama</b> (Özel) — bilgisayarında yerel, anahtar bile gerekmez.
+        💡 <b className="text-slate-400">Easiest:</b> <b className="text-accent">OpenRouter</b> — Claude,
+        GPT, Gemini, Llama, all with a single key. Or <b className="text-accent">Ollama</b> (Custom) — local on your machine, no key needed.
       </div>
     </Section>
   )
@@ -360,7 +360,7 @@ function IntegrationsSection(): JSX.Element {
     setMsg(null)
     try {
       const { added, skipped } = await importSshConfig()
-      setMsg(`İçe aktarıldı: ${added} sunucu eklendi${skipped ? `, ${skipped} zaten vardı` : ''}.`)
+      setMsg(`Imported: ${added} server(s) added${skipped ? `, ${skipped} already existed` : ''}.`)
     } catch (e) {
       setMsg((e as Error).message)
     } finally {
@@ -372,7 +372,7 @@ function IntegrationsSection(): JSX.Element {
     setMsg(null)
     try {
       const path = await window.janus.sshConfig.export()
-      setMsg(`Dışa aktarıldı: ${path}`)
+      setMsg(`Exported: ${path}`)
     } catch (e) {
       setMsg((e as Error).message)
     } finally {
@@ -381,7 +381,7 @@ function IntegrationsSection(): JSX.Element {
   }
 
   return (
-    <Section icon={Plug} title="Entegrasyonlar">
+    <Section icon={Plug} title="Integrations">
       <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
         <input
           type="checkbox"
@@ -389,7 +389,7 @@ function IntegrationsSection(): JSX.Element {
           onChange={(e) => updateSettings({ notifications: e.target.checked })}
           className="h-4 w-4 accent-accent"
         />
-        <Bell size={14} className="text-slate-500" /> Masaüstü bildirimleri (komut bitince, sunucu düşünce)
+        <Bell size={14} className="text-slate-500" /> Desktop notifications (when a command finishes, when a server goes down)
       </label>
       <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
         <input
@@ -398,19 +398,19 @@ function IntegrationsSection(): JSX.Element {
           onChange={(e) => updateSettings({ backgroundMonitor: e.target.checked })}
           className="h-4 w-4 accent-accent"
         />
-        Arka planda tüm sunucuları izle — geçmiş grafikleri + %90 eşik uyarıları (60sn'de bir)
+        Monitor all servers in the background — history charts + 90% threshold alerts (every 60s)
       </label>
 
       <div className="mt-2 border-t border-ink-600 pt-3">
         <p className="mb-2 text-xs text-slate-500">
-          <span className="font-mono">~/.ssh/config</span> ile senkron:
+          Sync with <span className="font-mono">~/.ssh/config</span>:
         </p>
         <div className="flex flex-wrap gap-2">
           <button onClick={doImport} disabled={!!busy} className="btn-ghost border border-ink-500">
-            {busy === 'imp' ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} İçe aktar
+            {busy === 'imp' ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />} Import
           </button>
           <button onClick={doExport} disabled={!!busy} className="btn-ghost border border-ink-500">
-            {busy === 'exp' ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} Dışa aktar
+            {busy === 'exp' ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />} Export
           </button>
         </div>
       </div>
@@ -453,7 +453,7 @@ const THEMES: { id: ThemeId; name: string; bg: string; accent: string }[] = [
 
 function ThemeSection({ current, onPick }: { current: ThemeId; onPick: (t: ThemeId) => void }): JSX.Element {
   return (
-    <Section icon={Palette} title="Tema">
+    <Section icon={Palette} title="Theme">
       <div className="grid grid-cols-5 gap-3">
         {THEMES.map((t) => (
           <button
@@ -498,18 +498,18 @@ function SessionSection(): JSX.Element {
   }
 
   return (
-    <Section icon={Clock} title="Oturum & Güvenlik">
-      <Row label="Boşta otomatik kilit">
+    <Section icon={Clock} title="Session & Security">
+      <Row label="Auto-lock when idle">
         <select
           value={s.lockAfterMinutes}
           onChange={(e) => updateSettings({ lockAfterMinutes: Number(e.target.value) })}
           className="field"
         >
-          <option value={0}>Kapalı</option>
-          <option value={5}>5 dakika sonra</option>
-          <option value={15}>15 dakika sonra</option>
-          <option value={30}>30 dakika sonra</option>
-          <option value={60}>1 saat sonra</option>
+          <option value={0}>Off</option>
+          <option value={5}>After 5 minutes</option>
+          <option value={15}>After 15 minutes</option>
+          <option value={30}>After 30 minutes</option>
+          <option value={60}>After 1 hour</option>
         </select>
       </Row>
       <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
@@ -520,10 +520,10 @@ function SessionSection(): JSX.Element {
           onChange={(e) => toggleRemember(e.target.checked)}
           className="h-4 w-4 accent-accent"
         />
-        Bu cihazda otomatik giriş yap (parola OS kasasında şifreli saklanır)
+        Sign in automatically on this device (password stored encrypted in the OS keychain)
       </label>
       <p className="text-xs text-slate-500">
-        Kapatırsan her açılışta master parola sorulur. Açıkken bu cihazda parola sorulmadan girilir.
+        If turned off, the master password is asked on every launch. When on, you sign in on this device without a password.
       </p>
     </Section>
   )
@@ -534,17 +534,17 @@ function CloudSoon(): JSX.Element {
     <div className="rounded-xl border border-dashed border-accent/40 bg-accent/5 p-5">
       <div className="mb-1.5 flex items-center gap-2">
         <Cloud size={17} className="text-accent" />
-        <span className="font-semibold text-slate-200">Bulut Senkronizasyonu & Hesaplar</span>
+        <span className="font-semibold text-slate-200">Cloud Sync & Accounts</span>
         <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
-          Yakında
+          Coming soon
         </span>
       </div>
       <p className="text-sm leading-relaxed text-slate-400">
-        Çok yakında: <span className="text-slate-300">kullanıcı hesabıyla giriş</span>, cihazlar arası şifreli
-        senkronizasyon ve ekip içi sunucu paylaşımı. Sunucuların her cihazında, güvenle yanında.
+        Coming soon: <span className="text-slate-300">sign in with a user account</span>, encrypted
+        sync across devices, and server sharing within your team. Your servers, safely with you on every device.
       </p>
       <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-        <Plug size={12} /> The Asaf Effect ekosistemiyle geliyor.
+        <Plug size={12} /> Coming with The Asaf Effect ecosystem.
       </p>
     </div>
   )

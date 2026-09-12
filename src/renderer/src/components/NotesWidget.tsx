@@ -83,11 +83,11 @@ export default function NotesWidget(): JSX.Element | null {
       >
         <GripVertical size={14} className="text-slate-600" />
         <StickyNote size={14} className="text-accent" />
-        <span className="flex-1 text-xs font-semibold text-slate-200">Notlar</span>
-        <button onClick={() => setBlur((b) => !b)} className="rounded p-1 text-slate-400 hover:bg-ink-600 hover:text-white" title={blur ? 'Göster' : 'Gizle'}>
+        <span className="flex-1 text-xs font-semibold text-slate-200">Notes</span>
+        <button onClick={() => setBlur((b) => !b)} className="rounded p-1 text-slate-400 hover:bg-ink-600 hover:text-white" title={blur ? 'Show' : 'Hide'}>
           {blur ? <EyeOff size={14} /> : <Eye size={14} />}
         </button>
-        <button onClick={toggleNotes} className="rounded p-1 text-slate-400 hover:bg-ink-600 hover:text-white" title="Kapat">
+        <button onClick={toggleNotes} className="rounded p-1 text-slate-400 hover:bg-ink-600 hover:text-white" title="Close">
           <X size={14} />
         </button>
       </div>
@@ -95,13 +95,13 @@ export default function NotesWidget(): JSX.Element | null {
         value={vault?.notes ?? ''}
         onChange={(e) => setNotes(e.target.value)}
         spellCheck={false}
-        placeholder="Şifreler, notlar, ip'ler… Proje geneli, şifreli vault'ta saklanır."
+        placeholder="Passwords, notes, IPs… Project-wide, stored in the encrypted vault."
         className={`min-h-0 flex-1 resize-none bg-transparent px-3 py-2.5 font-mono text-[12.5px] leading-relaxed text-slate-200 outline-none placeholder:text-slate-600 ${
           blur ? 'blur-sm hover:blur-0 focus:blur-0' : ''
         }`}
       />
       <div className="shrink-0 border-t border-ink-600 px-3 py-1 text-[10px] text-slate-600">
-        🔒 Şifreli vault'a otomatik kaydedilir
+        🔒 Auto-saved to the encrypted vault
       </div>
     </div>
   )

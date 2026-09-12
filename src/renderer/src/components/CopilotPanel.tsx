@@ -4,10 +4,10 @@ import { useStore } from '../store'
 import type { AiMessage } from '@shared/types'
 
 const SUGGESTIONS = [
-  'Son hatayı açıkla',
-  'Diski en çok ne dolduruyor?',
-  'nginx için güvenli reload komutu',
-  'Bu sunucuyu nasıl sertleştiririm?'
+  'Explain the last error',
+  'What is using the most disk space?',
+  'Safe reload command for nginx',
+  'How do I harden this server?'
 ]
 
 const CTX_ESTIMATE = 100_000 // rough soft window for the usage bar
@@ -39,11 +39,11 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
     setError(null)
     try {
       const system =
-        'Sen Janus Copilot\'sun — Janus (SSH & sunucu yöneticisi masaüstü uygulaması) içine gömülü, uzman bir Linux/DevOps/SSH/veritabanı asistanısın. ' +
-        'Kısa, net ve doğrudan cevap ver (Türkçe). Kabuk komutu önerirken üç backtick + bash bloğu kullan. Yıkıcı komutlarda uyar. ' +
+        'You are Janus Copilot — an expert Linux/DevOps/SSH/database assistant embedded in Janus (an SSH & server manager desktop app). ' +
+        'Answer briefly, clearly, and directly in English. Use triple-backtick + bash blocks when suggesting shell commands. Warn before destructive commands. ' +
         (server
-          ? `Kullanıcının şu an seçili sunucusu: "${server.name}" — ${server.username}@${server.host}:${server.port}.`
-          : 'Şu an seçili bir sunucu yok.')
+          ? `The user's currently selected server: "${server.name}" — ${server.username}@${server.host}:${server.port}.`
+          : 'No server is currently selected.')
       const reply = await window.janus.ai.chat(history, system)
       setMessages([...history, { role: 'assistant', content: reply.text }])
       setTruncated(reply.truncated)
@@ -58,7 +58,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
   async function send(text: string): Promise<void> {
     let q = text.trim()
     if ((!q && !attachment) || busy) return
-    if (attachment) q = `[Ekli dosya: ${attachment.name}]\n\`\`\`\n${attachment.content}\n\`\`\`\n\n${q}`
+    if (attachment) q = `[Attached file: ${attachment.name}]\n\`\`\`\n${attachment.content}\n\`\`\`\n\n${q}`
     setInput('')
     setAttachment(null)
     await ask([...messages, { role: 'user', content: q }])
@@ -66,7 +66,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
 
   async function continueReply(): Promise<void> {
     if (busy) return
-    await ask([...messages, { role: 'user', content: 'Kaldığın yerden devam et.' }])
+    await ask([...messages, { role: 'user', content: 'Continue from where you left off.' }])
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -74,7 +74,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
     e.target.value = ''
     if (!f) return
     if (f.size > 200_000) {
-      setError('Dosya 200KB\'den büyük — metin dosyası ekle.')
+      setError('File is larger than 200KB — attach a text file.')
       return
     }
     const reader = new FileReader()
@@ -95,18 +95,18 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
                 <Server size={11} /> {server.name}
               </>
             ) : (
-              'genel asistan'
+              'general assistant'
             )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {messages.length > 0 && (
-            <button onClick={() => setMessages([])} className="rounded p-1.5 text-slate-400 hover:bg-ink-600 hover:text-white" title="Temizle">
+            <button onClick={() => setMessages([])} className="rounded p-1.5 text-slate-400 hover:bg-ink-600 hover:text-white" title="Clear">
               <Trash2 size={15} />
             </button>
           )}
           {dock && (
-            <button onClick={toggleCopilot} className="rounded p-1.5 text-slate-400 hover:bg-ink-600 hover:text-white" title="Kapat (⌘I)">
+            <button onClick={toggleCopilot} className="rounded p-1.5 text-slate-400 hover:bg-ink-600 hover:text-white" title="Close (⌘I)">
               <X size={16} />
             </button>
           )}
@@ -117,12 +117,12 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
         <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-slate-500">
           <Sparkles size={40} className="opacity-40" />
           <p className="max-w-sm px-4 text-sm">
-            AI Copilot'u açmak için bir sağlayıcı bağla. En kolayı: <b className="text-accent">OpenRouter</b> (tek
-            anahtar → tüm modeller) ya da <b className="text-accent">Ollama</b> (yerel, anahtar gerekmez). Anahtarın
-            şifreli vault'ta saklanır.
+            Connect a provider to enable AI Copilot. The easiest options: <b className="text-accent">OpenRouter</b> (one
+            key → all models) or <b className="text-accent">Ollama</b> (local, no key needed). Your key is stored in the
+            encrypted vault.
           </p>
           <button onClick={() => setSidePanel('settings')} className="btn-primary">
-            <Settings2 size={15} /> Ayarlar → AI Copilot
+            <Settings2 size={15} /> Settings → AI Copilot
           </button>
         </div>
       ) : (
@@ -130,7 +130,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
           <div className={`min-h-0 flex-1 overflow-y-auto ${dock ? 'p-3' : 'p-6'}`}>
             {messages.length === 0 && (
               <div className={wrap}>
-                <p className="mb-3 text-sm text-slate-500">Bir şey sor ya da hızlı başla:</p>
+                <p className="mb-3 text-sm text-slate-500">Ask something or get started quickly:</p>
                 <div className="flex flex-wrap gap-2">
                   {SUGGESTIONS.map((s) => (
                     <button key={s} onClick={() => send(s)} className="chip hover:border-accent hover:text-accent">
@@ -146,12 +146,12 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
               ))}
               {busy && (
                 <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Loader2 size={15} className="animate-spin" /> düşünüyor…
+                  <Loader2 size={15} className="animate-spin" /> thinking…
                 </div>
               )}
               {truncated && !busy && (
                 <button onClick={continueReply} className="btn-ghost border border-ink-500 text-xs">
-                  <ArrowDown size={13} /> Devam et (yanıt kesildi)
+                  <ArrowDown size={13} /> Continue (reply was cut off)
                 </button>
               )}
               {error && <div className="rounded-md bg-bad/10 px-3 py-2 text-xs text-bad">{error}</div>}
@@ -163,7 +163,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
             <div className={wrap}>
               {/* context + limit indicator */}
               <div className="mb-1.5 flex items-center gap-2 text-[10px] text-slate-600">
-                <span>bağlam ~{(tokenEstimate / 1000).toFixed(1)}k token</span>
+                <span>context ~{(tokenEstimate / 1000).toFixed(1)}k tokens</span>
                 <div className="h-1 w-20 overflow-hidden rounded-full bg-ink-600">
                   <div
                     className={`h-full ${tokenEstimate / CTX_ESTIMATE > 0.8 ? 'bg-warn' : 'bg-accent'}`}
@@ -187,7 +187,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
                 <button
                   onClick={() => fileRef.current?.click()}
                   className="btn-ghost shrink-0 border border-ink-500 px-2.5 py-2"
-                  title="Dosya ekle (log, config, kod)"
+                  title="Attach file (log, config, code)"
                 >
                   <Paperclip size={16} />
                 </button>
@@ -201,7 +201,7 @@ export default function CopilotPanel({ dock = false }: { dock?: boolean }): JSX.
                     }
                   }}
                   rows={1}
-                  placeholder="Copilot'a sor…  (Enter gönder, Shift+Enter yeni satır)"
+                  placeholder="Ask Copilot…  (Enter to send, Shift+Enter for a new line)"
                   className="field max-h-32 flex-1 resize-none"
                 />
                 <button onClick={() => send(input)} disabled={busy || (!input.trim() && !attachment)} className="btn-primary shrink-0">
@@ -260,7 +260,7 @@ function CodeBlock({ code }: { code: string }): JSX.Element {
           }}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-400 hover:bg-ink-600 hover:text-white"
         >
-          {copied ? <Check size={11} className="text-good" /> : <Copy size={11} />} {copied ? 'Kopyalandı' : 'Kopyala'}
+          {copied ? <Check size={11} className="text-good" /> : <Copy size={11} />} {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       <pre className="overflow-x-auto p-3 font-mono text-xs text-good">{code}</pre>

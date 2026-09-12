@@ -39,26 +39,26 @@ export default function CommandPalette(): JSX.Element | null {
         label: srv.name,
         hint: `${srv.username}@${srv.host} · Terminal`,
         icon: TerminalIcon,
-        keywords: `${srv.name} ${srv.host} ${srv.username} ${srv.tags.join(' ')} terminal connect bağlan`,
+        keywords: `${srv.name} ${srv.host} ${srv.username} ${srv.tags.join(' ')} terminal connect`,
         run: () => s.openTerminal(srv.id)
       })
       list.push({
         id: `sftp-${srv.id}`,
         label: `${srv.name} — SFTP`,
-        hint: `${srv.username}@${srv.host} · Dosya transferi`,
+        hint: `${srv.username}@${srv.host} · File transfer`,
         icon: FolderTree,
-        keywords: `${srv.name} ${srv.host} sftp dosya file`,
+        keywords: `${srv.name} ${srv.host} sftp file`,
         run: () => s.openSftp(srv.id)
       })
     })
 
     list.push(
-      { id: 'new-server', label: 'Yeni sunucu ekle', icon: Plus, keywords: 'yeni sunucu ekle new server add', run: () => s.openServerForm() },
-      { id: 'new-group', label: 'Yeni grup oluştur', icon: FolderPlus, keywords: 'yeni grup new group folder', run: () => s.openGroupForm() },
-      { id: 'go-snippets', label: 'Snippet kütüphanesi', icon: Code2, keywords: 'snippet komut command', run: () => s.setSidePanel('snippets') },
-      { id: 'go-tunnels', label: 'Port forwarding / tüneller', icon: Network, keywords: 'tunnel tünel port forward socks', run: () => s.setSidePanel('tunnels') },
-      { id: 'go-settings', label: 'Ayarlar', icon: Settings, keywords: 'ayarlar settings tema font', run: () => s.setSidePanel('settings') },
-      { id: 'lock', label: "Vault'u kilitle", icon: Lock, keywords: 'kilitle lock çıkış', run: () => s.lock() }
+      { id: 'new-server', label: 'Add new server', icon: Plus, keywords: 'new server add', run: () => s.openServerForm() },
+      { id: 'new-group', label: 'Create new group', icon: FolderPlus, keywords: 'new group folder', run: () => s.openGroupForm() },
+      { id: 'go-snippets', label: 'Snippet library', icon: Code2, keywords: 'snippet command', run: () => s.setSidePanel('snippets') },
+      { id: 'go-tunnels', label: 'Port forwarding / tunnels', icon: Network, keywords: 'tunnel port forward socks', run: () => s.setSidePanel('tunnels') },
+      { id: 'go-settings', label: 'Settings', icon: Settings, keywords: 'settings theme font', run: () => s.setSidePanel('settings') },
+      { id: 'lock', label: 'Lock vault', icon: Lock, keywords: 'lock quit', run: () => s.lock() }
     )
     return list
   }, [s])
@@ -115,14 +115,14 @@ export default function CommandPalette(): JSX.Element | null {
                 setPalette(false)
               }
             }}
-            placeholder="Sunucu ara veya komut çalıştır…"
+            placeholder="Search servers or run a command…"
             className="flex-1 bg-transparent py-3.5 text-[15px] text-slate-100 outline-none placeholder:text-slate-600"
           />
           <kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 text-[10px] text-slate-500">ESC</kbd>
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto p-2">
-          {filtered.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-600">Sonuç yok.</div>}
+          {filtered.length === 0 && <div className="px-3 py-8 text-center text-sm text-slate-600">No results.</div>}
           {filtered.map((c, i) => {
             const Icon = c.icon
             return (

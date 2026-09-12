@@ -96,18 +96,18 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
     <div className="flex h-full flex-col bg-ink-900">
       {/* Toolbar */}
       <div className="flex shrink-0 items-center gap-1 border-b border-ink-600 bg-ink-800 px-3 py-2">
-        <button onClick={() => load('.')} className="btn-ghost px-2 py-1.5" title="Ev dizini">
+        <button onClick={() => load('.')} className="btn-ghost px-2 py-1.5" title="Home directory">
           <Home size={15} />
         </button>
-        <button onClick={up} className="btn-ghost px-2 py-1.5" title="Üst dizin">
+        <button onClick={up} className="btn-ghost px-2 py-1.5" title="Parent directory">
           <ArrowUp size={15} />
         </button>
-        <button onClick={() => load(path)} className="btn-ghost px-2 py-1.5" title="Yenile">
+        <button onClick={() => load(path)} className="btn-ghost px-2 py-1.5" title="Refresh">
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
         </button>
         <button
           onClick={() => copyPath(path)}
-          title="Geçerli yolu kopyala"
+          title="Copy current path"
           className="mx-2 flex flex-1 items-center gap-2 truncate rounded-md border border-ink-500 bg-ink-900 px-3 py-1.5 text-xs text-slate-300 hover:border-accent/60"
         >
           <Link2 size={13} className="shrink-0 text-slate-500" />
@@ -117,19 +117,19 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
         <button
           onClick={() => action('upload', async () => { await window.janus.sftp.upload(serverId, path === '.' ? '.' : path) })}
           className="btn-ghost border border-ink-500"
-          title="Dosya yükle"
+          title="Upload file"
         >
-          {busy === 'upload' ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} Yükle
+          {busy === 'upload' ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />} Upload
         </button>
         <button
           onClick={() =>
             action('mkdir', async () => {
-              const name = prompt('Yeni klasör adı:')
+              const name = prompt('New folder name:')
               if (name) await window.janus.sftp.mkdir(serverId, `${path.replace(/\/$/, '')}/${name}`)
             })
           }
           className="btn-ghost border border-ink-500"
-          title="Yeni klasör"
+          title="New folder"
         >
           <FolderPlus size={15} />
         </button>
@@ -146,9 +146,9 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-ink-800 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-2 text-left font-medium">İsim</th>
-              <th className="w-24 px-4 py-2 text-right font-medium">Boyut</th>
-              <th className="w-44 px-4 py-2 text-left font-medium">Değiştirilme</th>
+              <th className="px-4 py-2 text-left font-medium">Name</th>
+              <th className="w-24 px-4 py-2 text-right font-medium">Size</th>
+              <th className="w-44 px-4 py-2 text-left font-medium">Modified</th>
               <th className="w-28 px-4 py-2"></th>
             </tr>
           </thead>
@@ -172,13 +172,13 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
                 <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-500">
                   {e.type === 'file' ? fmtSize(e.size) : '—'}
                 </td>
-                <td className="px-4 py-1.5 text-xs text-slate-500">{new Date(e.mtime).toLocaleString('tr-TR')}</td>
+                <td className="px-4 py-1.5 text-xs text-slate-500">{new Date(e.mtime).toLocaleString('en-US')}</td>
                 <td className="px-4 py-1.5">
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100">
                     <button
                       onClick={() => copyPath(e.path)}
                       className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
-                      title="Yolu kopyala"
+                      title="Copy path"
                     >
                       {copied === e.path ? <Check size={13} className="text-good" /> : <Copy size={13} />}
                     </button>
@@ -187,14 +187,14 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
                         <button
                           onClick={() => setEditing(e)}
                           className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
-                          title="Düzenle"
+                          title="Edit"
                         >
                           <FileEdit size={13} />
                         </button>
                         <button
                           onClick={() => action(`dl-${e.path}`, async () => { await window.janus.sftp.download(serverId, e.path) })}
                           className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
-                          title="İndir"
+                          title="Download"
                         >
                           <Download size={13} />
                         </button>
@@ -203,7 +203,7 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
                     <button
                       onClick={() =>
                         action(`rn-${e.path}`, async () => {
-                          const name = prompt('Yeni isim:', e.name)
+                          const name = prompt('New name:', e.name)
                           if (name && name !== e.name) {
                             const dir = e.path.split('/').slice(0, -1).join('/')
                             await window.janus.sftp.rename(serverId, e.path, `${dir}/${name}`)
@@ -211,19 +211,19 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
                         })
                       }
                       className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
-                      title="Yeniden adlandır"
+                      title="Rename"
                     >
                       <Pencil size={13} />
                     </button>
                     <button
                       onClick={() =>
-                        confirm(`"${e.name}" silinsin mi?`) &&
+                        confirm(`Delete "${e.name}"?`) &&
                         action(`rm-${e.path}`, async () => {
                           await window.janus.sftp.remove(serverId, e.path, e.type === 'directory')
                         })
                       }
                       className="rounded p-1 text-slate-400 hover:bg-bad hover:text-white"
-                      title="Sil"
+                      title="Delete"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -234,11 +234,11 @@ export default function SftpPanel({ tab }: { tab: Tab }): JSX.Element {
           </tbody>
         </table>
         {!loading && entries.length === 0 && !error && (
-          <div className="py-12 text-center text-sm text-slate-500">Bu klasör boş.</div>
+          <div className="py-12 text-center text-sm text-slate-500">This folder is empty.</div>
         )}
         {loading && (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-            <Loader2 size={16} className="animate-spin" /> Yükleniyor…
+            <Loader2 size={16} className="animate-spin" /> Loading…
           </div>
         )}
       </div>
@@ -257,7 +257,7 @@ function FileEditor({ serverId, entry, onClose }: { serverId: string; entry: Sft
 
   useEffect(() => {
     if (tooBig) {
-      setErr('Dosya 2MB\'den büyük — düzenleyici desteklemiyor. İndirmeyi kullan.')
+      setErr('File is larger than 2MB — not supported by the editor. Use download instead.')
       setLoading(false)
       return
     }
@@ -284,21 +284,21 @@ function FileEditor({ serverId, entry, onClose }: { serverId: string; entry: Sft
 
   return (
     <Modal
-      title={`Düzenle · ${entry.name}`}
+      title={`Edit · ${entry.name}`}
       onClose={onClose}
       width={720}
       footer={
         <>
-          <button onClick={onClose} className="btn-ghost">İptal</button>
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
           <button onClick={save} disabled={saving || loading || tooBig} className="btn-primary">
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Kaydet
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save
           </button>
         </>
       }
     >
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-          <Loader2 size={16} className="animate-spin" /> Dosya yükleniyor…
+          <Loader2 size={16} className="animate-spin" /> Loading file…
         </div>
       ) : (
         <>
@@ -308,7 +308,7 @@ function FileEditor({ serverId, entry, onClose }: { serverId: string; entry: Sft
             onChange={(e) => setContent(e.target.value)}
             spellCheck={false}
             className="field h-[52vh] resize-none font-mono text-xs leading-relaxed"
-            placeholder="(boş)"
+            placeholder="(empty)"
           />
           <p className="mt-1.5 font-mono text-[10px] text-slate-600">{entry.path}</p>
         </>

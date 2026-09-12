@@ -41,8 +41,8 @@ class VaultStore {
    */
   async rememberPassword(password?: string): Promise<void> {
     const pw = password || this.password
-    if (!pw) throw new Error('Hatırlanacak parola yok (vault kilitli).')
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Bu cihazda güvenli depolama kullanılamıyor.')
+    if (!pw) throw new Error('No password to remember (vault is locked).')
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is not available on this device.')
     const enc = safeStorage.encryptString(pw)
     await writeFile(this.credPath, enc.toString('base64'), 'utf8')
   }
@@ -89,8 +89,8 @@ class VaultStore {
 
   /** Create a brand new vault protected by the given master password. */
   async create(password: string): Promise<void> {
-    if (await this.exists()) throw new Error('Vault zaten mevcut.')
-    if (!password || password.length < 4) throw new Error('Master parola en az 4 karakter olmalı.')
+    if (await this.exists()) throw new Error('Vault already exists.')
+    if (!password || password.length < 4) throw new Error('Master password must be at least 4 characters.')
     this.password = password
     this.cache = emptyVault()
     await this.flush()
@@ -114,21 +114,21 @@ class VaultStore {
 
   /** Return the in-memory vault (must be unlocked). */
   read(): Vault {
-    if (!this.cache) throw new Error('Vault kilitli.')
+    if (!this.cache)     throw new Error('Vault is locked.')
     return this.cache
   }
 
   /** Replace the whole vault and persist. */
   async write(vault: Vault): Promise<void> {
-    if (!this.password) throw new Error('Vault kilitli.')
+    if (!this.password)     throw new Error('Vault is locked.')
     this.cache = this.normalize(vault)
     await this.flush()
   }
 
   async changePassword(oldPassword: string, newPassword: string): Promise<void> {
-    if (!this.cache || !this.password) throw new Error('Vault kilitli.')
-    if (this.password !== oldPassword) throw new Error('Mevcut parola hatalı.')
-    if (!newPassword || newPassword.length < 4) throw new Error('Yeni parola en az 4 karakter olmalı.')
+    if (!this.cache || !this.password)     throw new Error('Vault is locked.')
+    if (this.password !== oldPassword) throw new Error('Current password is incorrect.')
+    if (!newPassword || newPassword.length < 4) throw new Error('New password must be at least 4 characters.')
     this.password = newPassword
     await this.flush()
     // Keep the device credential in sync if it was being remembered.
@@ -137,7 +137,7 @@ class VaultStore {
 
   /** Export the encrypted file to an arbitrary path (already-encrypted, portable). */
   async exportTo(path: string): Promise<void> {
-    if (!this.cache || !this.password) throw new Error('Vault kilitli.')
+    if (!this.cache || !this.password)     throw new Error('Vault is locked.')
     const file = encryptVault(JSON.stringify(this.cache), this.password)
     await writeFile(path, JSON.stringify(file, null, 2), 'utf8')
   }
@@ -156,7 +156,7 @@ class VaultStore {
 
   /** Encrypt the in-memory vault and atomically write it to disk. */
   private async flush(): Promise<void> {
-    if (!this.cache || !this.password) throw new Error('Yazılacak vault yok.')
+    if (!this.cache || !this.password) throw new Error('No vault to write.')
     const file = encryptVault(JSON.stringify(this.cache), this.password)
     const dir = dirname(this.filePath)
     await mkdir(dir, { recursive: true })

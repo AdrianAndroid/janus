@@ -30,7 +30,7 @@ export default function TitleBar({ minimal = false }: { minimal?: boolean }): JS
           <button
             onClick={() => setMini(false)}
             className="rounded-md p-1.5 text-accent hover:bg-ink-600"
-            title="Tam pencereye dön"
+            title="Back to full window"
           >
             <PictureInPicture2 size={15} />
           </button>
@@ -40,7 +40,7 @@ export default function TitleBar({ minimal = false }: { minimal?: boolean }): JS
             <button
               onClick={toggleNotes}
               className={`rounded-md p-1.5 ${notesOpen ? 'text-accent' : 'text-slate-400'} hover:bg-ink-600 hover:text-white`}
-              title="Notlar"
+              title="Notes"
             >
               <StickyNote size={15} />
             </button>
@@ -48,13 +48,13 @@ export default function TitleBar({ minimal = false }: { minimal?: boolean }): JS
               <button
                 onClick={() => setMini(true)}
                 className="rounded-md p-1.5 text-slate-400 hover:bg-ink-600 hover:text-white"
-                title="Mini panel modu"
+                title="Mini panel mode"
               >
                 <PictureInPicture2 size={15} />
               </button>
             )}
-            <button onClick={() => lock()} className="btn-ghost mx-1 px-2.5 py-1 text-[12px]" title="Vault'u kilitle">
-              <Lock size={13} /> Kilitle
+            <button onClick={() => lock()} className="btn-ghost mx-1 px-2.5 py-1 text-[12px]" title="Lock vault">
+              <Lock size={13} /> Lock
             </button>
           </>
         )}

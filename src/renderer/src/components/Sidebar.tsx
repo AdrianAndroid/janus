@@ -42,14 +42,14 @@ function readDrag(e: React.DragEvent): DragItem | null {
 }
 
 const railItems = [
-  { key: 'dashboard', icon: LayoutDashboard, label: 'Filo Paneli' },
-  { key: 'servers', icon: Server, label: 'Sunucular' },
+  { key: 'dashboard', icon: LayoutDashboard, label: 'Fleet Dashboard' },
+  { key: 'servers', icon: Server, label: 'Servers' },
   { key: 'broadcast', icon: Radio, label: 'Broadcast' },
-  { key: 'databases', icon: Database, label: 'Veritabanları' },
+  { key: 'databases', icon: Database, label: 'Databases' },
   { key: 'copilot', icon: Sparkles, label: 'AI Copilot' },
-  { key: 'snippets', icon: Code2, label: 'Snippet\'ler' },
-  { key: 'tunnels', icon: Network, label: 'Tüneller' },
-  { key: 'settings', icon: Settings, label: 'Ayarlar' }
+  { key: 'snippets', icon: Code2, label: 'Snippets' },
+  { key: 'tunnels', icon: Network, label: 'Tunnels' },
+  { key: 'settings', icon: Settings, label: 'Settings' }
 ] as const
 
 export default function Sidebar(): JSX.Element {
@@ -127,14 +127,14 @@ export default function Sidebar(): JSX.Element {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Sunucu ara…"
+                placeholder="Search servers…"
                 className="field py-1.5 pl-8 text-xs"
               />
             </div>
-            <button onClick={() => openGroupForm()} title="Yeni grup" className="btn-ghost px-2 py-1.5">
+            <button onClick={() => openGroupForm()} title="New group" className="btn-ghost px-2 py-1.5">
               <FolderPlus size={16} />
             </button>
-            <button onClick={() => openServerForm()} title="Yeni sunucu" className="btn-primary px-2 py-1.5">
+            <button onClick={() => openServerForm()} title="New server" className="btn-primary px-2 py-1.5">
               <Plus size={16} />
             </button>
           </div>
@@ -166,17 +166,17 @@ export default function Sidebar(): JSX.Element {
             <ServerTree servers={filtered} groups={groups} flat={!!search || !!activeTagFilter} />
             {servers.length === 0 && (
               <div className="px-4 py-10 text-center text-xs text-slate-500">
-                Henüz sunucu yok.
+                No servers yet.
                 <br />
                 <button onClick={() => openServerForm()} className="mt-2 text-accent hover:underline">
-                  İlk sunucunu ekle →
+                  Add your first server →
                 </button>
               </div>
             )}
           </div>
 
           <div className="border-t border-ink-600 px-3 py-2 text-[11px] text-slate-500">
-            {servers.length} sunucu · {groups.length} grup
+            {servers.length} servers · {groups.length} groups
           </div>
         </div>
       )}
@@ -273,13 +273,13 @@ function GroupNode({
         <span className="flex-1 truncate text-slate-200">{group.name}</span>
         <span className="text-[10px] text-slate-500">{count}</span>
         <div className="hidden items-center gap-0.5 group-hover:flex" onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => openServerForm({ groupId: group.id } as never)} className="rounded p-0.5 hover:bg-ink-500" title="Bu gruba sunucu ekle">
+          <button onClick={() => openServerForm({ groupId: group.id } as never)} className="rounded p-0.5 hover:bg-ink-500" title="Add server to this group">
             <Plus size={12} />
           </button>
-          <button onClick={() => openGroupForm(group)} className="rounded p-0.5 hover:bg-ink-500" title="Düzenle">
+          <button onClick={() => openGroupForm(group)} className="rounded p-0.5 hover:bg-ink-500" title="Edit">
             <Pencil size={12} />
           </button>
-          <button onClick={() => confirm(`"${group.name}" grubunu sil?`) && deleteGroup(group.id)} className="rounded p-0.5 hover:bg-bad" title="Sil">
+          <button onClick={() => confirm(`Delete group "${group.name}"?`) && deleteGroup(group.id)} className="rounded p-0.5 hover:bg-bad" title="Delete">
             <Trash2 size={12} />
           </button>
         </div>
@@ -348,13 +348,13 @@ function ServerRow({ server, depth }: { server: ServerProfile; depth: number }):
         </div>
       </div>
       <div className="hidden items-center gap-0.5 group-hover:flex" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => openTerminal(server.id)} className="rounded p-1 text-accent hover:bg-ink-500" title="Bağlan (terminal)">
+        <button onClick={() => openTerminal(server.id)} className="rounded p-1 text-accent hover:bg-ink-500" title="Connect (terminal)">
           <TerminalIcon size={13} />
         </button>
         <button onClick={() => openSftp(server.id)} className="rounded p-1 hover:bg-ink-500" title="SFTP">
           <FolderTree size={13} />
         </button>
-        <button onClick={() => openServerForm(server)} className="rounded p-1 hover:bg-ink-500" title="Düzenle">
+        <button onClick={() => openServerForm(server)} className="rounded p-1 hover:bg-ink-500" title="Edit">
           <Pencil size={13} />
         </button>
       </div>
@@ -367,16 +367,16 @@ function ServerRow({ server, depth }: { server: ServerProfile; depth: number }):
             style={{ left: menuPos.x, top: menuPos.y }}
             onClick={(e) => e.stopPropagation()}
           >
-            <MenuItem icon={TerminalIcon} label="Terminal aç" onClick={() => { openTerminal(server.id); closeMenu() }} />
-            <MenuItem icon={FolderTree} label="SFTP aç" onClick={() => { openSftp(server.id); closeMenu() }} />
-            <MenuItem icon={Box} label="Servisler / Docker" onClick={() => { openDocker(server.id); closeMenu() }} />
-            <MenuItem icon={ScrollText} label="Loglar (canlı)" onClick={() => { openLogs(server.id); closeMenu() }} />
-            <MenuItem icon={Monitor} label="Uzak masaüstü (VNC)" onClick={() => { openVnc(server.id); closeMenu() }} />
-            <MenuItem icon={MonitorPlay} label="RDP ile bağlan (Windows)" onClick={() => { window.janus.rdp.launch(server.id).catch((e) => alert((e as Error).message)); closeMenu() }} />
-            <MenuItem icon={Pencil} label="Düzenle" onClick={() => { openServerForm(server); closeMenu() }} />
-            <MenuItem icon={Copy} label="Çoğalt" onClick={() => { duplicateServer(server.id); closeMenu() }} />
+            <MenuItem icon={TerminalIcon} label="Open terminal" onClick={() => { openTerminal(server.id); closeMenu() }} />
+            <MenuItem icon={FolderTree} label="Open SFTP" onClick={() => { openSftp(server.id); closeMenu() }} />
+            <MenuItem icon={Box} label="Services / Docker" onClick={() => { openDocker(server.id); closeMenu() }} />
+            <MenuItem icon={ScrollText} label="Logs (live)" onClick={() => { openLogs(server.id); closeMenu() }} />
+            <MenuItem icon={Monitor} label="Remote desktop (VNC)" onClick={() => { openVnc(server.id); closeMenu() }} />
+            <MenuItem icon={MonitorPlay} label="Connect via RDP (Windows)" onClick={() => { window.janus.rdp.launch(server.id).catch((e) => alert((e as Error).message)); closeMenu() }} />
+            <MenuItem icon={Pencil} label="Edit" onClick={() => { openServerForm(server); closeMenu() }} />
+            <MenuItem icon={Copy} label="Duplicate" onClick={() => { duplicateServer(server.id); closeMenu() }} />
             <div className="my-1 border-t border-ink-500" />
-            <MenuItem icon={Trash2} label="Sil" danger onClick={() => { if (confirm(`"${server.name}" silinsin mi?`)) deleteServer(server.id); closeMenu() }} />
+            <MenuItem icon={Trash2} label="Delete" danger onClick={() => { if (confirm(`Delete "${server.name}"?`)) deleteServer(server.id); closeMenu() }} />
           </div>
         </>
       )}

@@ -44,12 +44,12 @@ export default function SplitTerminal({ tab }: { tab: Tab }): JSX.Element {
         <div key={pid} className="group relative min-h-0 min-w-0 bg-ink-900">
           <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             {panes.length < 4 && (
-              <button onClick={addPane} className="rounded bg-ink-700/90 p-1 text-slate-300 hover:bg-ink-600 hover:text-white" title="Böl (yeni panel)">
+              <button onClick={addPane} className="rounded bg-ink-700/90 p-1 text-slate-300 hover:bg-ink-600 hover:text-white" title="Split (new pane)">
                 <SplitSquareHorizontal size={13} />
               </button>
             )}
             {panes.length > 1 && (
-              <button onClick={() => closePane(pid)} className="rounded bg-ink-700/90 p-1 text-slate-300 hover:bg-bad hover:text-white" title="Paneli kapat">
+              <button onClick={() => closePane(pid)} className="rounded bg-ink-700/90 p-1 text-slate-300 hover:bg-bad hover:text-white" title="Close pane">
                 <X size={13} />
               </button>
             )}

@@ -34,7 +34,7 @@ export default function FleetDashboard(): JSX.Element {
           setMetrics((m) => ({ ...m, [s.id]: r }))
           // Notify on a fresh transition to unreachable.
           if (prevReach.current[s.id] === true && !r.reachable) {
-            notify('Sunucu çevrimdışı', `${s.name} (${s.host}) yanıt vermiyor.`)
+            notify('Server offline', `${s.name} (${s.host}) is not responding.`)
           }
           prevReach.current[s.id] = r.reachable
           if (r.reachable) {
@@ -72,19 +72,19 @@ export default function FleetDashboard(): JSX.Element {
       <div className="flex items-center justify-between border-b border-ink-600 px-6 py-4">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold text-white">
-            <LayoutDashboard size={20} className="text-accent" /> Filo Paneli
+            <LayoutDashboard size={20} className="text-accent" /> Fleet Dashboard
           </h1>
           <p className="text-sm text-slate-500">
-            {servers.length} sunucu · <span className="text-good">{online} çevrimiçi</span>
+            {servers.length} servers · <span className="text-good">{online} online</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-400">
             <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="h-4 w-4 accent-accent" />
-            Otomatik yenile (20sn)
+            Auto-refresh (20s)
           </label>
           <button onClick={refreshAll} disabled={refreshing} className="btn-ghost border border-ink-500">
-            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} /> Yenile
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function FleetDashboard(): JSX.Element {
         {servers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
             <Server size={48} className="mb-3 opacity-40" />
-            <p>Henüz sunucu yok. Filo panelinde görmek için sunucu ekle.</p>
+            <p>No servers yet. Add a server to see it on the fleet dashboard.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -162,11 +162,11 @@ function Card({
 
       {loading ? (
         <div className="flex items-center gap-2 py-3 text-xs text-slate-500">
-          <Loader2 size={14} className="animate-spin" /> Ölçülüyor…
+          <Loader2 size={14} className="animate-spin" /> Measuring…
         </div>
       ) : !reachable ? (
         <div className="truncate py-2 text-xs text-bad" title={data?.error}>
-          ✖ Erişilemiyor
+          ✖ Unreachable
         </div>
       ) : (
         <div className="space-y-2">
@@ -174,13 +174,13 @@ function Card({
           <MiniBar label="Disk" ratio={diskR} detail={`${fmtBytes(data?.diskUsed)} / ${fmtBytes(data?.diskTotal)}`} />
           <div className="flex items-center justify-between pt-0.5 text-[11px] text-slate-500">
             <span className="flex items-center gap-1">
-              <Cpu size={11} /> yük {data?.load ? data.load[0].toFixed(2) : '—'}
+              <Cpu size={11} /> load {data?.load ? data.load[0].toFixed(2) : '—'}
               <span className="text-slate-600">/{data?.cpuCount ?? '?'}</span>
             </span>
             <span>uptime {fmtUptime(data?.uptimeSec)}</span>
           </div>
           <div className="mt-1 border-t border-ink-700 pt-2">
-            <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-600">RAM geçmişi</div>
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-600">RAM history</div>
             <div className="h-[30px] w-full">
               <Sparkline values={hist} width={280} height={30} color={color || '#818cf8'} threshold={0.9} />
             </div>

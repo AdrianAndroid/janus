@@ -29,10 +29,10 @@ export default function UpdateBanner(): JSX.Element | null {
           ) : (
             <Download size={17} className="text-accent" />
           )}
-          {phase === 'available' && 'Güncelleme mevcut'}
-          {phase === 'downloading' && 'İndiriliyor…'}
-          {phase === 'downloaded' && 'Güncelleme hazır'}
-          {phase === 'error' && 'Güncelleme hatası'}
+          {phase === 'available' && 'Update available'}
+          {phase === 'downloading' && 'Downloading…'}
+          {phase === 'downloaded' && 'Update ready'}
+          {phase === 'error' && 'Update error'}
         </div>
         <button onClick={() => setDismissed(true)} className="rounded p-1 text-slate-500 hover:bg-ink-600 hover:text-white">
           <X size={15} />
@@ -41,7 +41,7 @@ export default function UpdateBanner(): JSX.Element | null {
 
       {status.version && phase !== 'error' && (
         <p className="mb-3 text-xs text-slate-500">
-          Sürüm <span className="font-mono text-slate-300">v{status.version}</span>
+          Version <span className="font-mono text-slate-300">v{status.version}</span>
         </p>
       )}
 
@@ -56,12 +56,12 @@ export default function UpdateBanner(): JSX.Element | null {
       <div className="flex gap-2">
         {phase === 'available' && (
           <button onClick={() => window.janus.updates.download()} className="btn-primary flex-1 py-1.5 text-xs">
-            <Download size={13} /> İndir
+            <Download size={13} /> Download
           </button>
         )}
         {phase === 'downloaded' && (
           <button onClick={() => window.janus.updates.install()} className="btn-primary flex-1 py-1.5 text-xs">
-            <RefreshCw size={13} /> Yeniden başlat & kur
+            <RefreshCw size={13} /> Restart & install
           </button>
         )}
         {phase === 'error' && status.manualOnly && (
@@ -69,12 +69,12 @@ export default function UpdateBanner(): JSX.Element | null {
             onClick={() => window.open('https://asafudurgucu.github.io/janus/')}
             className="btn-primary flex-1 py-1.5 text-xs"
           >
-            <Download size={13} /> Siteden indir
+            <Download size={13} /> Download from site
           </button>
         )}
         {phase === 'error' && !status.manualOnly && (
           <button onClick={() => window.janus.updates.check()} className="btn-ghost flex-1 border border-ink-500 py-1.5 text-xs">
-            <RefreshCw size={13} /> Tekrar dene
+            <RefreshCw size={13} /> Retry
           </button>
         )}
       </div>

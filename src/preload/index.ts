@@ -15,7 +15,7 @@ import type {
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
   const res = (await ipcRenderer.invoke(channel, ...args)) as IpcResult<T>
-  if (!res.ok) throw new Error(res.error || 'Bilinmeyen hata')
+  if (!res.ok) throw new Error(res.error || 'Unknown error')
   return res.data as T
 }
 

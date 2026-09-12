@@ -40,7 +40,7 @@ export async function launchRdp(profile: ServerProfile): Promise<void> {
     const err = await shell.openPath(file)
     if (err) {
       throw new Error(
-        'Microsoft Remote Desktop bulunamadı. Mac App Store\'dan ücretsiz kurup tekrar dene.'
+        'Microsoft Remote Desktop not found. Install it for free from the Mac App Store and try again.'
       )
     }
     return
@@ -60,5 +60,5 @@ export async function launchRdp(profile: ServerProfile): Promise<void> {
       /* try next */
     }
   }
-  throw new Error('RDP istemcisi bulunamadı. xfreerdp veya remmina kur.')
+  throw new Error('No RDP client found. Install xfreerdp or remmina.')
 }

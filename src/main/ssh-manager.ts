@@ -200,7 +200,7 @@ export class SSHManager {
       `touch ~/.ssh/authorized_keys && grep -qxF '${safe}' ~/.ssh/authorized_keys || echo '${safe}' >> ~/.ssh/authorized_keys && ` +
       `chmod 600 ~/.ssh/authorized_keys && echo OK`
     const { code, stdout, stderr } = await this.exec(profile, cmd, jump)
-    if (code !== 0 || !stdout.includes('OK')) throw new Error(stderr || 'Anahtar kurulamadı.')
+    if (code !== 0 || !stdout.includes('OK')) throw new Error(stderr || 'Failed to install key.')
   }
 
   // ---------------- Live log / command streaming ----------------
@@ -460,7 +460,7 @@ export class SSHManager {
   // ---------------- Tunnels / port forwarding ----------------
 
   async startTunnel(rule: TunnelRule, profile: ServerProfile, jump?: ServerProfile | null): Promise<void> {
-    if (this.tunnels.has(rule.id)) throw new Error('Tünel zaten çalışıyor.')
+    if (this.tunnels.has(rule.id)) throw new Error('Tunnel is already running.')
     const client = await this.connectClient(profile, jump)
     client.on('close', () => {
       this.tunnels.delete(rule.id)

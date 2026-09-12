@@ -29,12 +29,12 @@ export default function DockerPanel({ tab }: { tab: Tab }): JSX.Element {
         setTabStatus(tab.id, 'connected')
         if (stdout.includes('__NODOCKER__')) {
           setRows([])
-          setError('Bu sunucuda Docker bulunamadı.')
+          setError('Docker not found on this server.')
           return
         }
         if (stdout.includes('__NOSYSTEMD__')) {
           setRows([])
-          setError('Bu sunucuda systemd bulunamadı.')
+          setError('systemd not found on this server.')
           return
         }
         const lines = stdout.trim().split('\n').filter(Boolean)
@@ -72,9 +72,9 @@ export default function DockerPanel({ tab }: { tab: Tab }): JSX.Element {
   }
 
   const tabs: { id: View; label: string; icon: typeof Box }[] = [
-    { id: 'docker', label: 'Konteynerler', icon: Box },
-    { id: 'services', label: 'Servisler', icon: Cog },
-    { id: 'procs', label: 'Süreçler', icon: Activity }
+    { id: 'docker', label: 'Containers', icon: Box },
+    { id: 'services', label: 'Services', icon: Cog },
+    { id: 'procs', label: 'Processes', icon: Activity }
   ]
 
   return (
@@ -94,7 +94,7 @@ export default function DockerPanel({ tab }: { tab: Tab }): JSX.Element {
             </button>
           )
         })}
-        <button onClick={() => load(view)} className="btn-ghost ml-auto px-2 py-1.5" title="Yenile">
+        <button onClick={() => load(view)} className="btn-ghost ml-auto px-2 py-1.5" title="Refresh">
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
@@ -108,7 +108,7 @@ export default function DockerPanel({ tab }: { tab: Tab }): JSX.Element {
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {loading && rows.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
-            <Loader2 size={16} className="animate-spin" /> Yükleniyor…
+            <Loader2 size={16} className="animate-spin" /> Loading…
           </div>
         ) : view === 'docker' ? (
           <DockerTable rows={rows} busy={busy} act={act} />
@@ -151,10 +151,10 @@ function ActionBtn({
 }
 
 function DockerTable({ rows, busy, act }: { rows: string[][]; busy: string | null; act: (k: string, c: string) => void }): JSX.Element {
-  if (!rows.length) return <Empty text="Konteyner yok." />
+  if (!rows.length) return <Empty text="No containers." />
   return (
     <table className="w-full text-sm">
-      <Thead cols={['Ad', 'İmaj', 'Durum', '']} />
+      <Thead cols={['Name', 'Image', 'Status', '']} />
       <tbody>
         {rows.map(([id, name, image, state, status]) => (
           <tr key={id} className="border-b border-ink-700/50 hover:bg-ink-800">
@@ -163,9 +163,9 @@ function DockerTable({ rows, busy, act }: { rows: string[][]; busy: string | nul
             <td className={`px-3 py-1.5 text-xs ${stateColor(state)}`}>{status}</td>
             <td className="px-3 py-1.5">
               <div className="flex justify-end gap-1">
-                <ActionBtn icon={Play} busy={busy === `s${id}`} onClick={() => act(`s${id}`, `docker start ${id}`)} title="Başlat" />
-                <ActionBtn icon={Square} busy={busy === `t${id}`} onClick={() => act(`t${id}`, `docker stop ${id}`)} title="Durdur" />
-                <ActionBtn icon={RotateCw} busy={busy === `r${id}`} onClick={() => act(`r${id}`, `docker restart ${id}`)} title="Yeniden başlat" />
+                <ActionBtn icon={Play} busy={busy === `s${id}`} onClick={() => act(`s${id}`, `docker start ${id}`)} title="Start" />
+                <ActionBtn icon={Square} busy={busy === `t${id}`} onClick={() => act(`t${id}`, `docker stop ${id}`)} title="Stop" />
+                <ActionBtn icon={RotateCw} busy={busy === `r${id}`} onClick={() => act(`r${id}`, `docker restart ${id}`)} title="Restart" />
               </div>
             </td>
           </tr>
@@ -176,10 +176,10 @@ function DockerTable({ rows, busy, act }: { rows: string[][]; busy: string | nul
 }
 
 function ServiceTable({ rows, busy, act }: { rows: string[][]; busy: string | null; act: (k: string, c: string) => void }): JSX.Element {
-  if (!rows.length) return <Empty text="Servis yok." />
+  if (!rows.length) return <Empty text="No services." />
   return (
     <table className="w-full text-sm">
-      <Thead cols={['Servis', 'Durum', '']} />
+      <Thead cols={['Service', 'Status', '']} />
       <tbody>
         {rows.map(([unit, active, sub]) => (
           <tr key={unit} className="border-b border-ink-700/50 hover:bg-ink-800">
@@ -189,9 +189,9 @@ function ServiceTable({ rows, busy, act }: { rows: string[][]; busy: string | nu
             </td>
             <td className="px-3 py-1.5">
               <div className="flex justify-end gap-1">
-                <ActionBtn icon={Play} busy={busy === `s${unit}`} onClick={() => act(`s${unit}`, `systemctl start ${unit}`)} title="Başlat" />
-                <ActionBtn icon={Square} busy={busy === `t${unit}`} onClick={() => act(`t${unit}`, `systemctl stop ${unit}`)} title="Durdur" />
-                <ActionBtn icon={RotateCw} busy={busy === `r${unit}`} onClick={() => act(`r${unit}`, `systemctl restart ${unit}`)} title="Yeniden başlat" />
+                <ActionBtn icon={Play} busy={busy === `s${unit}`} onClick={() => act(`s${unit}`, `systemctl start ${unit}`)} title="Start" />
+                <ActionBtn icon={Square} busy={busy === `t${unit}`} onClick={() => act(`t${unit}`, `systemctl stop ${unit}`)} title="Stop" />
+                <ActionBtn icon={RotateCw} busy={busy === `r${unit}`} onClick={() => act(`r${unit}`, `systemctl restart ${unit}`)} title="Restart" />
               </div>
             </td>
           </tr>
@@ -202,10 +202,10 @@ function ServiceTable({ rows, busy, act }: { rows: string[][]; busy: string | nu
 }
 
 function ProcTable({ rows, busy, act }: { rows: string[][]; busy: string | null; act: (k: string, c: string) => void }): JSX.Element {
-  if (!rows.length) return <Empty text="Süreç bilgisi yok." />
+  if (!rows.length) return <Empty text="No process info." />
   return (
     <table className="w-full text-sm">
-      <Thead cols={['PID', 'CPU%', 'MEM%', 'Komut', '']} />
+      <Thead cols={['PID', 'CPU%', 'MEM%', 'Command', '']} />
       <tbody>
         {rows.map(([pid, cpu, mem, comm]) => (
           <tr key={pid} className="border-b border-ink-700/50 hover:bg-ink-800">
@@ -219,8 +219,8 @@ function ProcTable({ rows, busy, act }: { rows: string[][]; busy: string | null;
                   icon={Trash2}
                   danger
                   busy={busy === `k${pid}`}
-                  onClick={() => confirm(`PID ${pid} sonlandırılsın mı?`) && act(`k${pid}`, `kill ${pid}`)}
-                  title="Sonlandır (kill)"
+                  onClick={() => confirm(`Kill PID ${pid}?`) && act(`k${pid}`, `kill ${pid}`)}
+                  title="Kill"
                 />
               </div>
             </td>

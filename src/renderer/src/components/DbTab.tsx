@@ -25,8 +25,8 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
     try {
       const system =
         conn.type === 'redis'
-          ? 'Kullanıcının doğal dil isteğini TEK bir Redis komutuna çevir. SADECE komutu döndür; açıklama, markdown veya backtick yok.'
-          : `Kullanıcının doğal dil isteğini TEK bir ${conn.type} sorgusuna çevir. SADECE sorguyu döndür; açıklama, markdown veya backtick yok. Mevcut tablolar: ${tables.join(', ') || '(bilinmiyor)'}.`
+          ? "Convert the user's natural-language request into a SINGLE Redis command. Return ONLY the command; no explanation, markdown, or backticks."
+          : `Convert the user's natural-language request into a SINGLE ${conn.type} query. Return ONLY the query; no explanation, markdown, or backticks. Available tables: ${tables.join(', ') || '(unknown)'}.`
       const reply = await window.janus.ai.chat([{ role: 'user', content: aiQ }], system)
       const out = reply.text.trim().replace(/^```\w*\n?/, '').replace(/\n?```$/, '').trim()
       setSql(out)
@@ -90,7 +90,7 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
     run(q)
   }
 
-  if (!conn) return <div className="flex h-full items-center justify-center text-slate-500">Bağlantı bulunamadı.</div>
+  if (!conn) return <div className="flex h-full items-center justify-center text-slate-500">Connection not found.</div>
 
   return (
     <div className="flex h-full bg-ink-900">
@@ -99,9 +99,9 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
         <div className="flex items-center justify-between border-b border-ink-600 px-3 py-2">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
             {conn.type === 'redis' ? <KeyRound size={12} /> : <Table2 size={12} />}
-            {conn.type === 'redis' ? 'Anahtarlar' : 'Tablolar'}
+            {conn.type === 'redis' ? 'Keys' : 'Tables'}
           </span>
-          <button onClick={loadTables} className="rounded p-1 text-slate-400 hover:bg-ink-600" title="Yenile">
+          <button onClick={loadTables} className="rounded p-1 text-slate-400 hover:bg-ink-600" title="Refresh">
             <RefreshCw size={12} className={loadingTables ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -116,7 +116,7 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
               <span className="truncate">{t}</span>
             </button>
           ))}
-          {!loadingTables && tables.length === 0 && <div className="px-2 py-6 text-center text-xs text-slate-600">Boş</div>}
+          {!loadingTables && tables.length === 0 && <div className="px-2 py-6 text-center text-xs text-slate-600">Empty</div>}
         </div>
       </div>
 
@@ -133,11 +133,11 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
                 value={aiQ}
                 onChange={(e) => setAiQ(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && askAi()}
-                placeholder="İngilizce/Türkçe sor → sorgu üret (örn: son 7 günde en çok sipariş veren 10 müşteri)"
+                placeholder="Ask in plain English → generate query (e.g. top 10 customers by orders in the last 7 days)"
                 className="field flex-1 py-1.5 text-xs"
               />
               <button onClick={askAi} disabled={aiBusy || !aiQ.trim()} className="btn-ghost shrink-0 border border-ink-500 py-1.5 text-xs">
-                {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Üret
+                {aiBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Generate
               </button>
             </div>
           )}
@@ -152,16 +152,16 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
             }}
             spellCheck={false}
             className="field h-24 resize-none font-mono text-[13px] leading-relaxed"
-            placeholder={conn.type === 'redis' ? 'Redis komutu (örn: GET key)' : 'SQL sorgusu…  (⌘/Ctrl+Enter ile çalıştır)'}
+            placeholder={conn.type === 'redis' ? 'Redis command (e.g. GET key)' : 'SQL query…  (⌘/Ctrl+Enter to run)'}
           />
           <div className="mt-2 flex items-center gap-3">
             <button onClick={() => run()} disabled={running} className="btn-primary">
-              {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} Çalıştır
+              {running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />} Run
             </button>
             <span className="text-xs text-slate-600">⌘/Ctrl + Enter</span>
             {result && (
               <span className="ml-auto text-xs text-slate-500">
-                {result.rowCount} satır · {result.durationMs} ms
+                {result.rowCount} rows · {result.durationMs} ms
               </span>
             )}
           </div>
@@ -201,7 +201,7 @@ export default function DbTab({ tab }: { tab: Tab }): JSX.Element {
             </table>
           )}
           {result && result.rows.length === 0 && !error && (
-            <div className="py-10 text-center text-sm text-slate-500">Sorgu çalıştı — sonuç satırı yok.</div>
+            <div className="py-10 text-center text-sm text-slate-500">Query ran — no result rows.</div>
           )}
         </div>
       </div>

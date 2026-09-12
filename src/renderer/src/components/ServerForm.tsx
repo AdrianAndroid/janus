@@ -63,7 +63,7 @@ export default function ServerForm(): JSX.Element {
       const k = await window.janus.ssh.keygen('ed25519', `janus-${form.name || 'key'}`)
       setForm((f) => ({ ...f, privateKey: k.privateKey, passphrase: '' }))
       setGenPub(k.publicKey)
-      setKeyMsg('Anahtar üretildi ve özel anahtar alanına yazıldı.')
+      setKeyMsg('Key generated and written to the private key field.')
     } catch (e) {
       setKeyMsg((e as Error).message)
     } finally {
@@ -79,9 +79,9 @@ export default function ServerForm(): JSX.Element {
     setKeyMsg(null)
     try {
       await window.janus.ssh.installKey(form.id, genPub)
-      setKeyMsg('✓ Public key sunucuya kuruldu. Kimlik doğrulamayı "SSH Anahtarı" bırakıp kaydet.')
+      setKeyMsg('✓ Public key installed on the server. Keep authentication as "SSH Key" and save.')
     } catch (e) {
-      setKeyMsg('Kurulamadı: ' + (e as Error).message)
+      setKeyMsg('Could not install: ' + (e as Error).message)
     } finally {
       setKeyBusy(null)
     }
@@ -95,16 +95,16 @@ export default function ServerForm(): JSX.Element {
 
   return (
     <Modal
-      title={isEdit ? 'Sunucuyu Düzenle' : 'Yeni Sunucu'}
+      title={isEdit ? 'Edit Server' : 'New Server'}
       onClose={closeServerForm}
       width={560}
       footer={
         <>
           <button onClick={closeServerForm} className="btn-ghost">
-            İptal
+            Cancel
           </button>
           <button onClick={save} disabled={!form.name.trim() || !form.host.trim()} className="btn-primary">
-            {isEdit ? 'Kaydet' : 'Ekle'}
+            {isEdit ? 'Save' : 'Add'}
           </button>
         </>
       }
@@ -112,8 +112,8 @@ export default function ServerForm(): JSX.Element {
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="label">İsim *</label>
-            <input value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="Üretim Web Sunucusu" autoFocus />
+            <label className="label">Name *</label>
+            <input value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="Production Web Server" autoFocus />
           </div>
           <div>
             <label className="label">Host / IP *</label>
@@ -124,14 +124,14 @@ export default function ServerForm(): JSX.Element {
             <input type="number" value={form.port} onChange={(e) => set('port', Number(e.target.value) || 22)} className="field" />
           </div>
           <div>
-            <label className="label">Kullanıcı adı</label>
+            <label className="label">Username</label>
             <input value={form.username} onChange={(e) => set('username', e.target.value)} className="field" placeholder="root" />
           </div>
           <div>
-            <label className="label">Kimlik doğrulama</label>
+            <label className="label">Authentication</label>
             <select value={form.authMethod} onChange={(e) => set('authMethod', e.target.value as AuthMethod)} className="field">
-              <option value="password">Parola</option>
-              <option value="key">SSH Anahtarı</option>
+              <option value="password">Password</option>
+              <option value="key">SSH Key</option>
               <option value="agent">SSH Agent</option>
             </select>
           </div>
@@ -139,7 +139,7 @@ export default function ServerForm(): JSX.Element {
 
         {form.authMethod === 'password' && (
           <div>
-            <label className="label">Parola</label>
+            <label className="label">Password</label>
             <input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} className="field" placeholder="••••••••" />
           </div>
         )}
@@ -148,11 +148,11 @@ export default function ServerForm(): JSX.Element {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <button onClick={generateKey} disabled={!!keyBusy} className="btn-ghost border border-ink-500 text-xs">
-                {keyBusy === 'gen' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Yeni anahtar üret (ed25519)
+                {keyBusy === 'gen' ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Generate new key (ed25519)
               </button>
               {isEdit && genPub && (
                 <button onClick={installKey} disabled={!!keyBusy} className="btn-ghost border border-ink-500 text-xs">
-                  {keyBusy === 'install' ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Sunucuya kur
+                  {keyBusy === 'install' ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Install on server
                 </button>
               )}
             </div>
@@ -178,7 +178,7 @@ export default function ServerForm(): JSX.Element {
             )}
 
             <div>
-              <label className="label">Özel Anahtar (PEM)</label>
+              <label className="label">Private Key (PEM)</label>
               <textarea
                 value={form.privateKey}
                 onChange={(e) => set('privateKey', e.target.value)}
@@ -187,7 +187,7 @@ export default function ServerForm(): JSX.Element {
               />
             </div>
             <div>
-              <label className="label">Passphrase (opsiyonel)</label>
+              <label className="label">Passphrase (optional)</label>
               <input type="password" value={form.passphrase} onChange={(e) => set('passphrase', e.target.value)} className="field" />
             </div>
           </div>
@@ -195,15 +195,15 @@ export default function ServerForm(): JSX.Element {
 
         {form.authMethod === 'agent' && (
           <p className="rounded-md bg-ink-700 px-3 py-2 text-xs text-slate-400">
-            Sistemdeki SSH agent ($SSH_AUTH_SOCK) kullanılacak.
+            The system SSH agent ($SSH_AUTH_SOCK) will be used.
           </p>
         )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">Grup</label>
+            <label className="label">Group</label>
             <select value={form.groupId ?? ''} onChange={(e) => set('groupId', e.target.value || null)} className="field">
-              <option value="">— Grupsuz —</option>
+              <option value="">— No group —</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -214,7 +214,7 @@ export default function ServerForm(): JSX.Element {
           <div>
             <label className="label">Jump Host (bastion)</label>
             <select value={form.jumpHostId ?? ''} onChange={(e) => set('jumpHostId', e.target.value || null)} className="field">
-              <option value="">— Yok —</option>
+              <option value="">— None —</option>
               {otherServers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -225,7 +225,7 @@ export default function ServerForm(): JSX.Element {
         </div>
 
         <div>
-          <label className="label">Etiketler</label>
+          <label className="label">Tags</label>
           <div className="mb-2 flex flex-wrap gap-1">
             {form.tags.map((t) => (
               <span key={t} className="chip">
@@ -245,13 +245,13 @@ export default function ServerForm(): JSX.Element {
               placeholder="prod, web, frankfurt…"
             />
             <button onClick={addTag} className="btn-ghost shrink-0">
-              <Plus size={14} /> Ekle
+              <Plus size={14} /> Add
             </button>
           </div>
         </div>
 
         <div>
-          <label className="label">Renk</label>
+          <label className="label">Color</label>
           <div className="flex gap-2">
             {COLORS.map((c) => (
               <button
@@ -265,10 +265,10 @@ export default function ServerForm(): JSX.Element {
         </div>
 
         <div className="rounded-lg border border-ink-600 bg-ink-900/40 p-3">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Uzak Masaüstü (VNC)</div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Remote Desktop (VNC)</div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">VNC portu</label>
+              <label className="label">VNC port</label>
               <input
                 type="number"
                 value={form.vncPort ?? 5900}
@@ -277,20 +277,20 @@ export default function ServerForm(): JSX.Element {
               />
             </div>
             <div>
-              <label className="label">VNC parolası</label>
-              <input type="password" value={form.vncPassword} onChange={(e) => set('vncPassword', e.target.value)} className="field" placeholder="opsiyonel" />
+              <label className="label">VNC password</label>
+              <input type="password" value={form.vncPassword} onChange={(e) => set('vncPassword', e.target.value)} className="field" placeholder="optional" />
             </div>
           </div>
           <p className="mt-2 text-[11px] text-slate-600">
-            Bağlantı SSH tüneli üzerinden sunucuda <span className="font-mono">127.0.0.1:{form.vncPort ?? 5900}</span>'a yapılır. VNC sunucusu çalışıyor olmalı.
+            The connection is made over an SSH tunnel to <span className="font-mono">127.0.0.1:{form.vncPort ?? 5900}</span> on the server. A VNC server must be running.
           </p>
         </div>
 
         <div className="rounded-lg border border-ink-600 bg-ink-900/40 p-3">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Windows Uzak Masaüstü (RDP)</div>
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Windows Remote Desktop (RDP)</div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">RDP portu</label>
+              <label className="label">RDP port</label>
               <input
                 type="number"
                 value={form.rdpPort ?? 3389}
@@ -299,18 +299,18 @@ export default function ServerForm(): JSX.Element {
               />
             </div>
             <div>
-              <label className="label">RDP kullanıcı adı</label>
+              <label className="label">RDP username</label>
               <input value={form.rdpUsername} onChange={(e) => set('rdpUsername', e.target.value)} className="field" placeholder="Administrator" />
             </div>
           </div>
           <p className="mt-2 text-[11px] text-slate-600">
-            "RDP ile bağlan" sistemin uzak masaüstü istemcisini açar (Mac'te Microsoft Remote Desktop). Görüntü gelir, parola istemcide sorulur.
+            "Connect via RDP" opens your system's remote desktop client (Microsoft Remote Desktop on Mac). The display is provided and the password is asked in the client.
           </p>
         </div>
 
         <div>
-          <label className="label">Notlar</label>
-          <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="field h-20" placeholder="Bu sunucu hakkında notlar…" />
+          <label className="label">Notes</label>
+          <textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} className="field h-20" placeholder="Notes about this server…" />
         </div>
       </div>
     </Modal>

@@ -29,35 +29,35 @@ export default function GroupForm(): JSX.Element {
 
   return (
     <Modal
-      title={editingGroup ? 'Grubu Düzenle' : 'Yeni Grup'}
+      title={editingGroup ? 'Edit Group' : 'New Group'}
       onClose={closeGroupForm}
       width={420}
       footer={
         <>
           <button onClick={closeGroupForm} className="btn-ghost">
-            İptal
+            Cancel
           </button>
           <button onClick={save} disabled={!form.name.trim()} className="btn-primary">
-            Kaydet
+            Save
           </button>
         </>
       }
     >
       <div className="space-y-4">
         <div>
-          <label className="label">Grup adı *</label>
+          <label className="label">Group name *</label>
           <input
             autoFocus
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className="field"
-            placeholder="Üretim Sunucuları"
+            placeholder="Production Servers"
           />
         </div>
         <div>
-          <label className="label">Üst grup</label>
+          <label className="label">Parent group</label>
           <select value={form.parentId ?? ''} onChange={(e) => setForm({ ...form, parentId: e.target.value || null })} className="field">
-            <option value="">— Kök —</option>
+            <option value="">— Root —</option>
             {parents.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -66,7 +66,7 @@ export default function GroupForm(): JSX.Element {
           </select>
         </div>
         <div>
-          <label className="label">Renk</label>
+          <label className="label">Color</label>
           <div className="flex gap-2">
             {COLORS.map((c) => (
               <button

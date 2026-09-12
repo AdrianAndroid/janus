@@ -99,7 +99,7 @@ export default function App(): JSX.Element {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center bg-ink-900 text-slate-500">
-        <div className="animate-pulse text-sm">Janus yükleniyor…</div>
+        <div className="animate-pulse text-sm">Loading Janus…</div>
       </div>
     )
   }

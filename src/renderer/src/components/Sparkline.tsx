@@ -12,7 +12,7 @@ export default function Sparkline({
   threshold?: number
 }): JSX.Element {
   if (values.length < 2) {
-    return <div className="text-[10px] text-slate-600" style={{ height }}>geçmiş toplanıyor…</div>
+    return <div className="text-[10px] text-slate-600" style={{ height }}>collecting history…</div>
   }
   const top = Math.max(1, ...values)
   const x = (i: number): number => (i / (values.length - 1)) * width

@@ -14,9 +14,9 @@ function openaiBase(cfg: AiConfig): string {
  */
 export async function aiChat(cfg: AiConfig, messages: AiMessage[], system: string): Promise<AiReply> {
   if (cfg.provider !== 'custom' && !cfg.apiKey) {
-    throw new Error('AI API anahtarı ayarlanmamış (Ayarlar → AI Copilot).')
+    throw new Error('AI API key is not configured (Settings → AI Copilot).')
   }
-  if (!cfg.model) throw new Error('AI model adı ayarlanmamış.')
+  if (!cfg.model) throw new Error('AI model name is not configured.')
 
   // ---- Anthropic ----
   if (cfg.provider === 'anthropic') {
@@ -37,7 +37,7 @@ export async function aiChat(cfg: AiConfig, messages: AiMessage[], system: strin
     return {
       text: (j.content ?? []).map((c) => c.text ?? '').join(''),
       truncated: j.stop_reason === 'max_tokens',
-      rateLimit: reqRem ? `${reqRem} istek · ${tokRem ?? '?'} token kaldı` : undefined,
+      rateLimit: reqRem ? `${reqRem} requests · ${tokRem ?? '?'} tokens left` : undefined,
       usage: { input: j.usage?.input_tokens, output: j.usage?.output_tokens }
     }
   }

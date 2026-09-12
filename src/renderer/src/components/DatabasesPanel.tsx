@@ -24,7 +24,7 @@ export default function DatabasesPanel(): JSX.Element {
     setTestMsg(null)
     try {
       await window.janus.db.test(d)
-      setTestMsg({ id: d.id, ok: true, text: 'Bağlantı başarılı' })
+      setTestMsg({ id: d.id, ok: true, text: 'Connection successful' })
     } catch (e) {
       setTestMsg({ id: d.id, ok: false, text: (e as Error).message })
     } finally {
@@ -37,12 +37,12 @@ export default function DatabasesPanel(): JSX.Element {
       <div className="flex items-center justify-between border-b border-ink-600 px-6 py-4">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold text-white">
-            <Database size={20} className="text-accent" /> Veritabanları
+            <Database size={20} className="text-accent" /> Databases
           </h1>
-          <p className="text-sm text-slate-500">Postgres, MySQL, Redis — SSH tüneli üzerinden güvenli bağlan.</p>
+          <p className="text-sm text-slate-500">Postgres, MySQL, Redis — connect securely over an SSH tunnel.</p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-primary">
-          <Plus size={16} /> Yeni Bağlantı
+          <Plus size={16} /> New Connection
         </button>
       </div>
 
@@ -50,9 +50,9 @@ export default function DatabasesPanel(): JSX.Element {
         {dbs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
             <Database size={48} className="mb-3 opacity-40" />
-            <p>Henüz veritabanı bağlantısı yok.</p>
+            <p>No database connections yet.</p>
             <button onClick={() => setCreating(true)} className="mt-2 text-accent hover:underline">
-              İlk bağlantını ekle →
+              Add your first connection →
             </button>
           </div>
         ) : (
@@ -68,27 +68,27 @@ export default function DatabasesPanel(): JSX.Element {
                       <div className="truncate text-xs text-slate-500">
                         {meta.label} · {d.host}:{d.port}
                         {d.database ? ` / ${d.database}` : ''}
-                        {d.sshServerId ? ' · 🔒 tünel' : ''}
+                        {d.sshServerId ? ' · 🔒 tunnel' : ''}
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100">
-                      <button onClick={() => test(d)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Test et">
+                      <button onClick={() => test(d)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Test">
                         {testing === d.id ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
                       </button>
-                      <button onClick={() => setEditing(d)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Düzenle">
+                      <button onClick={() => setEditing(d)} className="rounded p-1.5 text-slate-400 hover:bg-ink-600" title="Edit">
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => confirm(`"${d.name}" silinsin mi?`) && deleteDatabase(d.id)}
+                        onClick={() => confirm(`Delete "${d.name}"?`) && deleteDatabase(d.id)}
                         className="rounded p-1.5 text-slate-400 hover:bg-bad hover:text-white"
-                        title="Sil"
+                        title="Delete"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
                   <button onClick={() => openDb(d.id)} className="btn-ghost w-full border border-ink-500 text-sm">
-                    <Play size={14} /> Bağlan & sorgu çalıştır
+                    <Play size={14} /> Connect & run queries
                   </button>
                   {testMsg?.id === d.id && (
                     <div className={`mt-2 flex items-center gap-1.5 text-xs ${testMsg.ok ? 'text-good' : 'text-bad'}`}>
@@ -142,24 +142,24 @@ function DbForm({ conn, onClose }: { conn: DbConnection | null; onClose: () => v
 
   return (
     <Modal
-      title={conn ? 'Bağlantıyı Düzenle' : 'Yeni Veritabanı Bağlantısı'}
+      title={conn ? 'Edit Connection' : 'New Database Connection'}
       onClose={onClose}
       width={560}
       footer={
         <>
-          <button onClick={onClose} className="btn-ghost">İptal</button>
-          <button onClick={save} disabled={!form.name.trim() || !form.host.trim()} className="btn-primary">Kaydet</button>
+          <button onClick={onClose} className="btn-ghost">Cancel</button>
+          <button onClick={save} disabled={!form.name.trim() || !form.host.trim()} className="btn-primary">Save</button>
         </>
       }
     >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="label">İsim *</label>
-            <input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="Üretim DB" />
+            <label className="label">Name *</label>
+            <input autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} className="field" placeholder="Production DB" />
           </div>
           <div>
-            <label className="label">Tür</label>
+            <label className="label">Type</label>
             <select value={form.type} onChange={(e) => setType(e.target.value as DbType)} className="field">
               <option value="postgres">PostgreSQL</option>
               <option value="mysql">MySQL</option>
@@ -167,9 +167,9 @@ function DbForm({ conn, onClose }: { conn: DbConnection | null; onClose: () => v
             </select>
           </div>
           <div>
-            <label className="label">SSH tüneli (opsiyonel)</label>
+            <label className="label">SSH tunnel (optional)</label>
             <select value={form.sshServerId ?? ''} onChange={(e) => set('sshServerId', e.target.value || null)} className="field">
-              <option value="">— Doğrudan —</option>
+              <option value="">— Direct —</option>
               {servers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -187,22 +187,22 @@ function DbForm({ conn, onClose }: { conn: DbConnection | null; onClose: () => v
           </div>
           {form.type !== 'redis' && (
             <div>
-              <label className="label">Kullanıcı</label>
+              <label className="label">Username</label>
               <input value={form.username} onChange={(e) => set('username', e.target.value)} className="field" />
             </div>
           )}
           <div>
-            <label className="label">Parola</label>
+            <label className="label">Password</label>
             <input type="password" value={form.password} onChange={(e) => set('password', e.target.value)} className="field" placeholder="••••••" />
           </div>
           <div className={form.type === 'redis' ? '' : 'col-span-2'}>
-            <label className="label">{form.type === 'redis' ? 'DB index' : 'Veritabanı adı'}</label>
+            <label className="label">{form.type === 'redis' ? 'DB index' : 'Database name'}</label>
             <input value={form.database} onChange={(e) => set('database', e.target.value)} className="field" placeholder={form.type === 'redis' ? '0' : 'mydb'} />
           </div>
         </div>
         {form.sshServerId && (
           <p className="text-[11px] text-slate-500">
-            Bağlantı seçili sunucunun SSH'ı üzerinden tünellenir — host, o sunucudan görünen adrestir (örn. 127.0.0.1).
+            The connection is tunneled over the selected server's SSH — host is the address as seen from that server (e.g. 127.0.0.1).
           </p>
         )}
       </div>
