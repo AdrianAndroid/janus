@@ -69,10 +69,44 @@ const api = {
     upload: (serverId: string, remoteDir: string) => invoke<number | false>(IPC.sftpUpload, serverId, remoteDir),
     mkdir: (serverId: string, path: string) => invoke<boolean>(IPC.sftpMkdir, serverId, path),
     remove: (serverId: string, path: string, isDir: boolean) => invoke<boolean>(IPC.sftpRemove, serverId, path, isDir),
+    removeRecursive: (serverId: string, path: string) => invoke<boolean>(IPC.sftpRemoveRecursive, serverId, path),
+    dirSize: (serverId: string, path: string) => invoke<number>(IPC.sftpDirSize, serverId, path),
     rename: (serverId: string, from: string, to: string) => invoke<boolean>(IPC.sftpRename, serverId, from, to),
     readFile: (serverId: string, path: string) => invoke<string>(IPC.sftpReadFile, serverId, path),
     writeFile: (serverId: string, path: string, content: string) =>
       invoke<boolean>(IPC.sftpWriteFile, serverId, path, content)
+  },
+  localFs: {
+    home: () => invoke<string>(IPC.localHome),
+    list: (path: string) => invoke<{ cwd: string; entries: SftpEntry[] }>(IPC.localList, path),
+    mkdir: (path: string) => invoke<boolean>(IPC.localMkdir, path),
+    rename: (from: string, to: string) => invoke<boolean>(IPC.localRename, from, to),
+    remove: (path: string) => invoke<boolean>(IPC.localRemove, path),
+    stat: (path: string) => invoke<SftpEntry | null>(IPC.localStat, path),
+    dirSize: (path: string) => invoke<number>(IPC.localDirSize, path)
+  },
+  transfer: {
+    start: (req: import('../shared/types').TransferRequest) => invoke<string>(IPC.transferStart, req),
+    cancel: (id: string) => invoke<boolean>(IPC.transferCancel, id),
+    resume: (id: string) => invoke<boolean>(IPC.transferResume, id),
+    resolve: (id: string, action: import('../shared/types').ConflictAction, newName?: string) =>
+      invoke<boolean>(IPC.transferResolve, id, action, newName),
+    clear: () => invoke<boolean>(IPC.transferClear),
+    list: () => invoke<import('../shared/types').TransferTask[]>(IPC.transferList),
+    onProgress: (cb: (task: import('../shared/types').TransferTask) => void) => {
+      const listener = (_e: unknown, payload: import('../shared/types').TransferTask): void => cb(payload)
+      ipcRenderer.on(IPC.transferProgress, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.transferProgress, listener)
+      }
+    },
+    onConflict: (cb: (conflict: import('../shared/types').TransferConflict) => void) => {
+      const listener = (_e: unknown, payload: import('../shared/types').TransferConflict): void => cb(payload)
+      ipcRenderer.on(IPC.transferConflict, listener)
+      return () => {
+        ipcRenderer.removeListener(IPC.transferConflict, listener)
+      }
+    }
   },
   tunnel: {
     start: (rule: TunnelRule) => invoke<boolean>(IPC.tunnelStart, rule),

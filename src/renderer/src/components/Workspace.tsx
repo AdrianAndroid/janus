@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Terminal as TerminalIcon, FolderTree, Box, ScrollText, Monitor, Database, X, XCircle, ListX } from 'lucide-react'
 import { useStore } from '../store'
 import SplitTerminal from './SplitTerminal'
-import SftpPanel from './SftpPanel'
+import FilesPanel from './FilesPanel'
 import DockerPanel from './DockerPanel'
 import LogsPanel from './LogsPanel'
 import VncPanel from './VncPanel'
@@ -126,7 +126,7 @@ export default function Workspace(): JSX.Element {
               {tab.kind === 'terminal' ? (
                 <SplitTerminal tab={tab} />
               ) : tab.kind === 'sftp' ? (
-                <SftpPanel tab={tab} />
+                <FilesPanel tab={tab} />
               ) : tab.kind === 'docker' ? (
                 <DockerPanel tab={tab} />
               ) : tab.kind === 'logs' ? (

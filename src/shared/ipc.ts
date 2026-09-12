@@ -76,6 +76,29 @@ export const IPC = {
   sftpReadFile: 'sftp:read-file',
   sftpWriteFile: 'sftp:write-file',
 
+  // Local filesystem (this machine)
+  localHome: 'localfs:home',
+  localList: 'localfs:list',
+  localMkdir: 'localfs:mkdir',
+  localRename: 'localfs:rename',
+  localRemove: 'localfs:remove',
+  localStat: 'localfs:stat',
+  localDirSize: 'localfs:dir-size',
+
+  // File transfer engine
+  transferStart: 'transfer:start',
+  transferCancel: 'transfer:cancel',
+  transferResume: 'transfer:resume',
+  transferResolve: 'transfer:resolve',
+  transferClear: 'transfer:clear',
+  transferList: 'transfer:list',
+  transferProgress: 'transfer:progress', // main -> renderer event
+  transferConflict: 'transfer:conflict', // main -> renderer event
+
+  // Recursive remote delete
+  sftpRemoveRecursive: 'sftp:remove-recursive',
+  sftpDirSize: 'sftp:dir-size',
+
   // Tunnels / port forwarding
   tunnelStart: 'tunnel:start',
   tunnelStop: 'tunnel:stop',

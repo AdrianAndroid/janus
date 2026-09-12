@@ -8,7 +8,12 @@ import type {
   TunnelRule,
   AppSettings,
   SessionStatus,
-  DbConnection
+  DbConnection,
+  ConflictAction,
+  TransferConflict,
+  TransferDirection,
+  TransferRequest,
+  TransferTask
 } from '@shared/types'
 
 // --- Lightweight UI-preference persistence (localStorage). NEVER store the
@@ -81,6 +86,11 @@ interface UIState {
 
   // AI copilot right dock
   copilotOpen: boolean
+
+  // file transfers
+  transfers: TransferTask[]
+  conflicts: TransferConflict[]
+  rememberedActions: Partial<Record<TransferDirection, ConflictAction>>
 }
 
 interface Actions {
@@ -161,6 +171,14 @@ interface Actions {
 
   // copilot dock
   toggleCopilot: () => void
+
+  // file transfers
+  initTransferListeners: () => void
+  startTransfer: (req: TransferRequest) => Promise<void>
+  cancelTransfer: (id: string) => Promise<void>
+  resumeTransfer: (id: string) => Promise<void>
+  clearFinishedTransfers: () => Promise<void>
+  resolveConflict: (taskId: string, action: ConflictAction, remember: boolean, newName?: string) => Promise<void>
 }
 
 export const useStore = create<UIState & Actions>((set, get) => ({
@@ -186,6 +204,10 @@ export const useStore = create<UIState & Actions>((set, get) => ({
   notesOpen: prefs.notesOpen ?? false,
   miniMode: false,
   copilotOpen: prefs.copilotOpen ?? false,
+
+  transfers: [],
+  conflicts: [],
+  rememberedActions: {},
 
   async init() {
     set({ loading: true })
@@ -470,7 +492,7 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const v = get().vault
     const server = v?.servers.find((s) => s.id === serverId)
     if (!server) return
-    const tab: Tab = { id: uuid(), kind: 'sftp', serverId, title: `SFTP · ${server.name}`, status: 'connecting' }
+    const tab: Tab = { id: uuid(), kind: 'sftp', serverId, title: `Files · ${server.name}`, status: 'connecting' }
     set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
   },
 
@@ -534,6 +556,54 @@ export const useStore = create<UIState & Actions>((set, get) => ({
 
   setPalette: (open) => set({ paletteOpen: open }),
 
+  // ---- file transfers ----
+
+  initTransferListeners() {
+    if (transferListenersReady) return
+    transferListenersReady = true
+    window.janus.transfer.onProgress((task) => {
+      const list = get().transfers
+      const idx = list.findIndex((t) => t.id === task.id)
+      set({ transfers: idx >= 0 ? list.map((t) => (t.id === task.id ? task : t)) : [...list, task] })
+    })
+    window.janus.transfer.onConflict((conflict) => {
+      const remembered = get().rememberedActions[conflict.direction]
+      if (remembered) {
+        void window.janus.transfer.resolve(conflict.taskId, remembered)
+        return
+      }
+      if (!get().conflicts.some((c) => c.taskId === conflict.taskId)) {
+        set({ conflicts: [...get().conflicts, conflict] })
+      }
+    })
+  },
+
+  async startTransfer(req) {
+    await window.janus.transfer.start(req)
+  },
+
+  async cancelTransfer(id) {
+    await window.janus.transfer.cancel(id)
+  },
+
+  async resumeTransfer(id) {
+    await window.janus.transfer.resume(id)
+  },
+
+  async clearFinishedTransfers() {
+    await window.janus.transfer.clear()
+    set({ transfers: get().transfers.filter((t) => !['done', 'error', 'canceled'].includes(t.status)) })
+  },
+
+  async resolveConflict(taskId, action, remember, newName) {
+    const conflict = get().conflicts.find((c) => c.taskId === taskId)
+    await window.janus.transfer.resolve(taskId, action, newName)
+    if (remember && conflict && action !== 'rename') {
+      set({ rememberedActions: { ...get().rememberedActions, [conflict.direction]: action } })
+    }
+    set({ conflicts: get().conflicts.filter((c) => c.taskId !== taskId) })
+  },
+
   toggleNotes() {
     const open = !get().notesOpen
     savePrefs({ notesOpen: open })
@@ -564,3 +634,4 @@ export const useStore = create<UIState & Actions>((set, get) => ({
 }))
 
 let notesTimer: ReturnType<typeof setTimeout> | undefined
+let transferListenersReady = false

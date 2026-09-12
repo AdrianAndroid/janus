@@ -8,7 +8,9 @@ import { launchRdp } from './rdp'
 import { importSshConfig, exportSshConfig } from './sshconfig'
 import { DbManager } from './db-manager'
 import { aiChat } from './ai'
-import type { KeyType, DbConnection, AiMessage } from '@shared/types'
+import { TransferManager } from './transfer-manager'
+import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
+import type { ConflictAction, KeyType, DbConnection, AiMessage, TransferRequest } from '@shared/types'
 import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
 
 /** Wrap a handler so it always returns a tidy IpcResult and never throws across IPC. */
@@ -44,6 +46,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const dbm = new DbManager((sshServerId, host, port) => {
     const p = findServer(sshServerId)
     return ssh.openLocalForward(p, host, port, jumpFor(p))
+  })
+  const transfers = new TransferManager(ssh, emit, (serverId) => {
+    const profile = findServer(serverId)
+    return { profile, jump: jumpFor(profile) }
   })
 
   // ---- Vault lifecycle ----
@@ -232,6 +238,53 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     await ssh.sftpWriteFile(p, path as string, content as string, jumpFor(p))
     return true
   })
+  handle(IPC.sftpRemoveRecursive, async (serverId, path) => {
+    const p = findServer(serverId as string)
+    await ssh.sftpRemoveRecursive(p, path as string, jumpFor(p))
+    return true
+  })
+
+  // ---- Local filesystem (dual-pane file manager) ----
+  handle(IPC.localHome, async () => localHome())
+  handle(IPC.localList, async (path) => localList(path as string))
+  handle(IPC.localMkdir, async (path) => {
+    await localMkdir(path as string)
+    return true
+  })
+  handle(IPC.localRename, async (from, to) => {
+    await localRename(from as string, to as string)
+    return true
+  })
+  handle(IPC.localRemove, async (path) => {
+    await localRemove(path as string)
+    return true
+  })
+  handle(IPC.localStat, async (path) => localStat(path as string))
+  handle(IPC.localDirSize, async (path) => localDirSize(path as string))
+  handle(IPC.sftpDirSize, async (serverId, path) => {
+    const p = findServer(serverId as string)
+    return ssh.sftpDirSize(p, path as string, jumpFor(p))
+  })
+
+  // ---- File transfer engine ----
+  handle(IPC.transferStart, async (req) => transfers.start(req as TransferRequest))
+  handle(IPC.transferCancel, async (id) => {
+    transfers.cancel(id as string)
+    return true
+  })
+  handle(IPC.transferResume, async (id) => {
+    transfers.resume(id as string)
+    return true
+  })
+  handle(IPC.transferResolve, async (id, action, newName) => {
+    transfers.resolve(id as string, action as ConflictAction, newName as string | undefined)
+    return true
+  })
+  handle(IPC.transferClear, async () => {
+    transfers.clear()
+    return true
+  })
+  handle(IPC.transferList, async () => transfers.list())
 
   // ---- Tunnels ----
   handle(IPC.tunnelStart, async (rule) => {

@@ -88,7 +88,7 @@ export default function ServerDetail(): JSX.Element {
           <TerminalIcon size={16} /> Open Terminal
         </button>
         <button onClick={() => openSftp(server.id)} className="btn-ghost border border-ink-500">
-          <FolderTree size={16} /> SFTP
+          <FolderTree size={16} /> Files
         </button>
         <button onClick={() => openDocker(server.id)} className="btn-ghost border border-ink-500">
           <Box size={16} /> Services

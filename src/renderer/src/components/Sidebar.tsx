@@ -351,7 +351,7 @@ function ServerRow({ server, depth }: { server: ServerProfile; depth: number }):
         <button onClick={() => openTerminal(server.id)} className="rounded p-1 text-accent hover:bg-ink-500" title="Connect (terminal)">
           <TerminalIcon size={13} />
         </button>
-        <button onClick={() => openSftp(server.id)} className="rounded p-1 hover:bg-ink-500" title="SFTP">
+        <button onClick={() => openSftp(server.id)} className="rounded p-1 hover:bg-ink-500" title="Files">
           <FolderTree size={13} />
         </button>
         <button onClick={() => openServerForm(server)} className="rounded p-1 hover:bg-ink-500" title="Edit">
@@ -368,7 +368,7 @@ function ServerRow({ server, depth }: { server: ServerProfile; depth: number }):
             onClick={(e) => e.stopPropagation()}
           >
             <MenuItem icon={TerminalIcon} label="Open terminal" onClick={() => { openTerminal(server.id); closeMenu() }} />
-            <MenuItem icon={FolderTree} label="Open SFTP" onClick={() => { openSftp(server.id); closeMenu() }} />
+            <MenuItem icon={FolderTree} label="Open Files" onClick={() => { openSftp(server.id); closeMenu() }} />
             <MenuItem icon={Box} label="Services / Docker" onClick={() => { openDocker(server.id); closeMenu() }} />
             <MenuItem icon={ScrollText} label="Logs (live)" onClick={() => { openLogs(server.id); closeMenu() }} />
             <MenuItem icon={Monitor} label="Remote desktop (VNC)" onClick={() => { openVnc(server.id); closeMenu() }} />

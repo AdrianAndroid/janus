@@ -44,10 +44,10 @@ export default function CommandPalette(): JSX.Element | null {
       })
       list.push({
         id: `sftp-${srv.id}`,
-        label: `${srv.name} — SFTP`,
+        label: `${srv.name} — Files`,
         hint: `${srv.username}@${srv.host} · File transfer`,
         icon: FolderTree,
-        keywords: `${srv.name} ${srv.host} sftp file`,
+        keywords: `${srv.name} ${srv.host} sftp file files transfer upload download`,
         run: () => s.openSftp(srv.id)
       })
     })

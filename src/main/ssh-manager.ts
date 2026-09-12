@@ -340,20 +340,61 @@ export class SSHManager {
   // ---------------- SFTP ----------------
 
   private sftpClients = new Map<string, Client>()
+  private sftpConnecting = new Map<string, Promise<Client>>()
+  private sftpChannels = new WeakMap<Client, Promise<import('ssh2').SFTPWrapper>>()
 
   private async getSftpClient(profile: ServerProfile, jump?: ServerProfile | null): Promise<Client> {
     const existing = this.sftpClients.get(profile.id)
     if (existing) return existing
-    const client = await this.connectClient(profile, jump)
-    client.on('close', () => this.sftpClients.delete(profile.id))
-    this.sftpClients.set(profile.id, client)
-    return client
+    const pending = this.sftpConnecting.get(profile.id)
+    if (pending) return pending
+    const connecting = this.connectClient(profile, jump).then((client) => {
+      if (this.sftpConnecting.get(profile.id) !== connecting) {
+        client.end()
+        throw new Error('SFTP connection canceled')
+      }
+      const cleanup = (): void => {
+        if (this.sftpClients.get(profile.id) === client) this.sftpClients.delete(profile.id)
+        this.sftpChannels.delete(client)
+      }
+      client.on('close', cleanup)
+      client.on('end', cleanup)
+      client.on('error', () => {
+        cleanup()
+        client.end()
+      })
+      this.sftpClients.set(profile.id, client)
+      return client
+    }).finally(() => {
+      if (this.sftpConnecting.get(profile.id) === connecting) this.sftpConnecting.delete(profile.id)
+    })
+    this.sftpConnecting.set(profile.id, connecting)
+    return connecting
   }
 
   private sftp(client: Client): Promise<import('ssh2').SFTPWrapper> {
-    return new Promise((resolve, reject) => {
-      client.sftp((err, sftp) => (err ? reject(err) : resolve(sftp)))
+    const existing = this.sftpChannels.get(client)
+    if (existing) return existing
+    const opening = new Promise<import('ssh2').SFTPWrapper>((resolve, reject) => {
+      client.sftp((err, sftp) => {
+        if (err) return reject(err)
+        const cleanup = (): void => {
+          if (this.sftpChannels.get(client) === opening) this.sftpChannels.delete(client)
+        }
+        sftp.on('close', cleanup)
+        sftp.on('end', cleanup)
+        sftp.on('error', () => {
+          cleanup()
+          sftp.end()
+        })
+        resolve(sftp)
+      })
+    }).catch((err) => {
+      if (this.sftpChannels.get(client) === opening) this.sftpChannels.delete(client)
+      throw err
     })
+    this.sftpChannels.set(client, opening)
+    return opening
   }
 
   async sftpList(
@@ -455,6 +496,88 @@ export class SSHManager {
     return new Promise((resolve, reject) => {
       sftp.writeFile(path, content, (err) => (err ? reject(err) : resolve()))
     })
+  }
+
+  /** Shared SFTP handle; callers close their file streams, never this channel. */
+  async getSftp(profile: ServerProfile, jump?: ServerProfile | null): Promise<import('ssh2').SFTPWrapper> {
+    const client = await this.getSftpClient(profile, jump)
+    return this.sftp(client)
+  }
+
+  async sftpStat(
+    profile: ServerProfile,
+    path: string,
+    jump?: ServerProfile | null
+  ): Promise<{ size: number; isDirectory: boolean } | null> {
+    const sftp = await this.getSftp(profile, jump)
+    return new Promise((resolve) => {
+      sftp.stat(path, (err, st) => {
+        if (err) return resolve(null)
+        resolve({ size: st.size, isDirectory: st.isDirectory() })
+      })
+    })
+  }
+
+  /** mkdir -p on the remote side; existing segments are ignored. */
+  async sftpMakedirs(profile: ServerProfile, dir: string, jump?: ServerProfile | null): Promise<void> {
+    const sftp = await this.getSftp(profile, jump)
+    const parts = dir.split('/').filter(Boolean)
+    let cur = dir.startsWith('/') ? '' : '.'
+    for (const part of parts) {
+      cur = cur === '' ? `/${part}` : `${cur}/${part}`
+      const p = cur
+      await new Promise<void>((resolve) => {
+        sftp.mkdir(p, (err) => {
+          // EEXIST/failure because it already exists is fine; other errors
+          // will surface when a file inside the directory is written.
+          void err
+          resolve()
+        })
+      })
+    }
+  }
+
+  /** Recursive delete: unlink files depth-first, then rmdir bottom-up. */
+  async sftpRemoveRecursive(profile: ServerProfile, path: string, jump?: ServerProfile | null): Promise<void> {
+    const sftp = await this.getSftp(profile, jump)
+    const walk = async (p: string): Promise<void> => {
+      const st = await new Promise<import('ssh2').Stats | null>((resolve) => {
+        sftp.lstat(p, (err, s) => resolve(err ? null : s))
+      })
+      if (!st) throw new Error(`Not found: ${p}`)
+      if (st.isDirectory() && !st.isSymbolicLink()) {
+        const list = await new Promise<import('ssh2').FileEntryWithStats[]>((resolve, reject) => {
+          sftp.readdir(p, (err, l) => (err ? reject(err) : resolve(l)))
+        })
+        for (const e of list) {
+          if (e.filename === '.' || e.filename === '..') continue
+          await walk(`${p.replace(/\/$/, '')}/${e.filename}`)
+        }
+        await new Promise<void>((resolve, reject) => sftp.rmdir(p, (err) => (err ? reject(err) : resolve())))
+      } else {
+        await new Promise<void>((resolve, reject) => sftp.unlink(p, (err) => (err ? reject(err) : resolve())))
+      }
+    }
+    await walk(path)
+  }
+
+  /** Recursive disk usage of a remote folder. Symlinked dirs are not followed. */
+  async sftpDirSize(profile: ServerProfile, path: string, jump?: ServerProfile | null): Promise<number> {
+    const sftp = await this.getSftp(profile, jump)
+    const walk = async (dir: string): Promise<number> => {
+      const list = await new Promise<import('ssh2').FileEntryWithStats[]>((resolve, reject) => {
+        sftp.readdir(dir, (err, l) => (err ? reject(err) : resolve(l)))
+      })
+      let total = 0
+      for (const e of list) {
+        if (e.filename === '.' || e.filename === '..') continue
+        const full = `${dir.replace(/\/$/, '')}/${e.filename}`
+        if (e.attrs.isDirectory()) total += await walk(full)
+        else if (e.attrs.isFile()) total += e.attrs.size
+      }
+      return total
+    }
+    return walk(path)
   }
 
   // ---------------- Tunnels / port forwarding ----------------
@@ -608,5 +731,7 @@ export class SSHManager {
     for (const id of [...this.vncServers.keys()]) this.stopVnc(id)
     for (const [, c] of this.sftpClients) c.end()
     this.sftpClients.clear()
+    this.sftpConnecting.clear()
+    this.sftpChannels = new WeakMap()
   }
 }

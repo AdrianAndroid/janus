@@ -203,6 +203,59 @@ export interface SftpEntry {
   group: number
 }
 
+// ---- File transfer engine ----
+
+export type TransferDirection = 'upload' | 'download'
+
+export type TransferStatus =
+  | 'queued'
+  | 'scanning'
+  | 'running'
+  | 'waiting-conflict'
+  | 'done'
+  | 'error'
+  | 'canceled'
+  | 'interrupted'
+
+export interface TransferTask {
+  id: string
+  serverId: string
+  direction: TransferDirection
+  /** Display name (file or folder name). */
+  name: string
+  localPath: string
+  remotePath: string
+  isDir: boolean
+  /** Total bytes across all files in the task (0 until scanned). */
+  size: number
+  transferred: number
+  status: TransferStatus
+  error?: string
+  startedAt?: number
+  finishedAt?: number
+}
+
+export type ConflictAction = 'resume' | 'overwrite' | 'skip' | 'rename'
+
+export interface TransferConflict {
+  taskId: string
+  direction: TransferDirection
+  /** Entry name colliding at the destination. */
+  name: string
+  sourceSize: number
+  targetSize: number
+  /** Resume is only meaningful when part of the file already exists. */
+  canResume: boolean
+}
+
+export interface TransferRequest {
+  serverId: string
+  direction: TransferDirection
+  localPath: string
+  remotePath: string
+  isDir: boolean
+}
+
 // ---- Auto-update ----
 
 export type UpdatePhase =
