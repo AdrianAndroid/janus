@@ -40,6 +40,8 @@ function statusText(t: TransferTask): string {
       return t.error || 'Failed'
     case 'canceled':
       return 'Canceled'
+    case 'done':
+      return 'Completed'
     default:
       return ''
   }

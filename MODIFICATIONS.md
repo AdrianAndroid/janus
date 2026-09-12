@@ -82,6 +82,15 @@
 - IPC：`media:open`（`MediaOpenRequest{title,path,serverId?}`）；preload 暴露 `media.open`；远程请求先 `findServer` 校验。
 - 限制：Chromium 编解码决定可播范围——mp4/H.264/WebM 良好；**MKV/AVI/HEVC/RMVB 很可能无法解码**（按钮仍在，播不出属预期）；MIME 未知时回退 octet-stream。
 - 播放进度记忆（2026-09-12）：进度存主进程 `userData/media-progress.json`（key = `serverId:path` 或本地 path，远程按服务器隔离）；播放中每 5 秒及关闭窗口时经 `webContents.executeJavaScript` 读取 `video.currentTime` 保存；重开时 dom-ready 注入脚本在 `loadedmetadata` 后恢复 `currentTime`（>3 秒才恢复）。data: URL 页面无可靠 localStorage，故走主进程持久化。
+- **VNC 弹出窗口**（2026-09-12）：`VncPanel` 工具栏新增 Pop out 按钮 → `src/main/vnc-window.ts`（`VncWindowManager`）复用 `ssh.startVnc` 的 WS 桥（独立 sessionId），开 1280×820 独立窗口加载 `vnc.html`（`src/renderer/src/vnc/main.tsx`，noVNC + 状态栏 + Ctrl+Alt+Del + Reconnect）；`vnc:popout`/`vnc:context` IPC；preload `src/preload/vnc.ts` 自包含（sandbox:true 同样内联通道名）；关窗自动 stopVnc；锁仓关闭全部弹出窗；弹窗 ready-to-show 强制 show+focus（防止开到后台/其他 Space 被误判为失败）。
+- **VNC 首连竞态修复**（同日）：WS 桥在 SSH forwardOut 就绪前会丢弃 noVNC 帧 → 改为 backlog 缓冲，通道就绪后回放；标签页与弹窗的首次失败自动重试一次（800ms）；弹窗 getContext 失败显示明确错误。
+- **VNC 全部改为弹出窗口**（同日）：内置 VNC 标签页已移除（`VncPanel.tsx` 删除、TabKind 去掉 'vnc'、Workspace 分支与图标清理）；`store.openVnc` 改为直接调用 `vnc:popout`，ServerDetail/Sidebar 入口不变即得弹窗。旧 `vnc:start`/`vnc:stop` 通道保留未用（不删旧 IPC）。
+
+### 6.1 同日其他界面与体验调整
+- `ServerDetail.tsx` 操作按钮 8 个一排过长 → 改为两行（Open Terminal/Files/Disk Usage/Services；Logs/VNC/RDP/Edit）。
+- `CopilotPanel.tsx` 输入框占位符 "Ask Copilot… (Enter to send, Shift+Enter for a new line)" 在窄栏换行被裁 → 缩短为 "Ask Copilot…"，快捷键说明移至 title 悬停。
+- `TransferQueue.tsx` 完成任务原仅 ✓ 无文字 → `done` 状态显示 "Completed"；任务保留设计不变（Clear finished 手动清除）。
+- **VNC 排障结论**（2026-09-12 实测）：台式机 x11vnc 正常运行于 5900（display :1，`-rfbauth ~/.vnc/passwd`），SSH 转发链路验证通过（收到 RFB 003.008）；连接失败原因是服务器配置未填 `vncPassword` → 在 ServerForm「Remote Desktop (VNC)」区填密码即可。
 
 ## 7. Disk Usage 磁盘分析器（2026-09-12 实现，设计规格见 docs/disk-usage-implementation-plan.md）
 
@@ -132,7 +141,7 @@
 | `npm run typecheck`（node+web） | ✅ 通过（0 错误） |
 | `npm run build`（含 worker/preload/HTML 新产物） | ✅ 通过 |
 | `git diff --check` | ✅ 通过 |
-| Disk Usage 自动化 `node scripts/test-disk-usage.mjs` | ✅ 30/30（协议/守卫/索引/Python 扫描与删除边界） |
+| Disk Usage 自动化 `node scripts/test-disk-usage.mjs` | ✅ 32/32（协议/守卫/索引/Python 扫描与删除边界/本地+远程取消响应性） |
 | Disk Usage GUI：开窗、扫描、树图、下钻、删除、跨窗刷新 | ❌ 未做 |
 | 真机远程扫描（192.168.2.2）与隔离目录删除 | ❌ 未做 |
 | 生产打包后分析窗/worker/remote.py 路径 | ❌ 未做 |

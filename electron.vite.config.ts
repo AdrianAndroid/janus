@@ -26,7 +26,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/preload/index.ts'),
-          'disk-usage': resolve('src/preload/disk-usage.ts')
+          'disk-usage': resolve('src/preload/disk-usage.ts'),
+          vnc: resolve('src/preload/vnc.ts')
         }
       }
     }
@@ -51,7 +52,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/renderer/index.html'),
-          diskUsage: resolve('src/renderer/disk-usage.html')
+          diskUsage: resolve('src/renderer/disk-usage.html'),
+          vnc: resolve('src/renderer/vnc.html')
         }
       }
     }

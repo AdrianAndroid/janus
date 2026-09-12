@@ -147,7 +147,8 @@ const api = {
   },
   vnc: {
     start: (sessionId: string, serverId: string) => invoke<number>(IPC.vncStart, sessionId, serverId),
-    stop: (sessionId: string) => ipcRenderer.send(IPC.vncStop, sessionId)
+    stop: (sessionId: string) => ipcRenderer.send(IPC.vncStop, sessionId),
+    popout: (serverId: string) => invoke<boolean>(IPC.vncPopout, serverId)
   },
   rdp: {
     launch: (serverId: string) => invoke<boolean>(IPC.rdpLaunch, serverId)

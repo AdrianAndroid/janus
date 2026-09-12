@@ -12,6 +12,7 @@ import { TransferManager } from './transfer-manager'
 import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
 import { mediaProgressKey, mediaUrl, openMediaPlayer, setupMediaProtocol } from './media'
 import { registerDiskIpc, type DiskRuntime } from './disk-usage/ipc'
+import { VncWindowManager } from './vnc-window'
 import type { DiskTarget } from '@shared/disk-usage'
 import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
 import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
@@ -120,6 +121,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
   handle(IPC.vaultLock, async () => {
     diskRuntime.closeAllWindows()
     await diskRuntime.shutdown()
+    vncWindows.closeAll()
     ssh.shutdown()
     dbm.shutdown()
     vaultStore.lock()
@@ -194,6 +196,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     return ssh.startVnc(sessionId as string, profile, jumpFor(profile))
   })
   ipcMain.on(IPC.vncStop, (_e, sessionId: string) => ssh.stopVnc(sessionId))
+  const vncWindows = new VncWindowManager(ssh, jumpFor)
+  handle(IPC.vncPopout, async (serverId) => {
+    const profile = findServer(serverId as string)
+    await vncWindows.openPopout(profile)
+    return true
+  })
+  ipcMain.handle(IPC.vncContext, async (e) => {
+    const ctx = vncWindows.contextFor(e.sender.id)
+    if (!ctx) return { ok: false, error: 'INVALID_OWNER' }
+    return { ok: true, data: ctx }
+  })
 
   // ---- RDP (native client) ----
   handle(IPC.rdpLaunch, async (serverId) => {

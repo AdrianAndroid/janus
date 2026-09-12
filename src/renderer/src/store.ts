@@ -42,7 +42,7 @@ function savePrefs(patch: Record<string, unknown>): void {
 }
 const prefs = loadPrefs()
 
-export type TabKind = 'terminal' | 'sftp' | 'docker' | 'logs' | 'vnc' | 'db'
+export type TabKind = 'terminal' | 'sftp' | 'docker' | 'logs' | 'db'
 
 export interface Tab {
   id: string
@@ -527,8 +527,8 @@ export const useStore = create<UIState & Actions>((set, get) => ({
     const v = get().vault
     const server = v?.servers.find((s) => s.id === serverId)
     if (!server) return
-    const tab: Tab = { id: uuid(), kind: 'vnc', serverId, title: `Desktop · ${server.name}`, status: 'connecting' }
-    set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
+    // VNC always opens in a standalone popout window (embedded tab removed).
+    void window.janus.vnc.popout(serverId).catch((e) => alert((e as Error).message))
   },
 
   closeTab(tabId) {

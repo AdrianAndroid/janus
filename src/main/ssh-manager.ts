@@ -258,21 +258,32 @@ export class SSHManager {
     const port = typeof addr === 'object' && addr ? addr.port : 0
 
     wss.on('connection', (ws) => {
+      // Buffer client frames until the SSH channel is ready — noVNC sends its
+      // security handshake immediately after the banner, and bytes arriving
+      // before forwardOut completes were previously dropped (first-connect race).
+      let stream: ClientChannel | null = null
+      const backlog: Buffer[] = []
+      ws.on('message', (data: Buffer) => {
+        if (stream) stream.write(data)
+        else backlog.push(data)
+      })
       this.connectClient(profile, jump)
         .then((client) => {
-          client.forwardOut('127.0.0.1', 0, '127.0.0.1', profile.vncPort || 5900, (err, stream) => {
+          client.forwardOut('127.0.0.1', 0, '127.0.0.1', profile.vncPort || 5900, (err, s) => {
             if (err) {
               ws.close()
               client.end()
               return
             }
-            ws.on('message', (data: Buffer) => stream.write(data))
-            stream.on('data', (d: Buffer) => {
+            stream = s
+            for (const d of backlog) s.write(d)
+            backlog.length = 0
+            s.on('data', (d: Buffer) => {
               if (ws.readyState === WebSocket.OPEN) ws.send(d)
             })
-            stream.on('close', () => ws.close())
+            s.on('close', () => ws.close())
             ws.on('close', () => {
-              stream.end()
+              s.end()
               client.end()
             })
           })

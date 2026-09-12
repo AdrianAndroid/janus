@@ -38,6 +38,8 @@ export const IPC = {
   // VNC remote desktop (WS↔TCP bridge, tunneled over SSH)
   vncStart: 'vnc:start',
   vncStop: 'vnc:stop',
+  vncPopout: 'vnc:popout',
+  vncContext: 'vnc:context',
 
   // RDP — launch the OS remote desktop client
   rdpLaunch: 'rdp:launch',
