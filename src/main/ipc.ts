@@ -10,10 +10,11 @@ import { DbManager } from './db-manager'
 import { aiChat } from './ai'
 import { TransferManager } from './transfer-manager'
 import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
-import { PlayerWindowManager, setupMediaProtocol } from './media'
+import { PlayerWindowManager, readProgressMap, setupMediaProtocol } from './media'
 import { registerDiskIpc, type DiskRuntime } from './disk-usage/ipc'
 import { VncWindowManager } from './vnc-window'
 import { ViewerWindowManager } from './viewer-window'
+import { VideoFavoritesStore } from './video-favorites'
 import type { DiskTarget } from '@shared/disk-usage'
 import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
 import type { SaveProgressReq } from '@shared/media'
@@ -69,10 +70,15 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     const profile = findServer(serverId)
     return { profile, jump: jumpFor(profile) }
   })
-  const playerWindows = new PlayerWindowManager(ssh, (serverId) => {
-    const profile = findServer(serverId)
-    return { profile, jump: jumpFor(profile) }
-  })
+  const videoFavorites = new VideoFavoritesStore()
+  const playerWindows = new PlayerWindowManager(
+    ssh,
+    (serverId) => {
+      const profile = findServer(serverId)
+      return { profile, jump: jumpFor(profile) }
+    },
+    videoFavorites
+  )
   const diskRuntime: DiskRuntime = registerDiskIpc({
     getWindow,
     ssh,
@@ -102,6 +108,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     await playerWindows.openPlayer(r.serverId, r.path, r.title)
     return true
   })
+  handle(IPC.mediaProgressMap, async () => readProgressMap())
   ipcMain.handle(IPC.playerContext, async (e) => {
     const ctx = playerWindows.contextFor(e.sender.id)
     if (!ctx) return { ok: false, error: 'INVALID_OWNER' }
@@ -109,6 +116,27 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
   })
   ipcMain.handle(IPC.playerSaveProgress, async (e, req) => {
     playerWindows.saveProgress(e.sender.id, req as SaveProgressReq)
+    return { ok: true, data: true }
+  })
+
+  // ---- Video favorites (main-process store; main window or player windows) ----
+  const videoFavSenderOk = (sender: Electron.WebContents): boolean =>
+    sender.id === getWindow()?.webContents.id || playerWindows.contextFor(sender.id) !== null
+  ipcMain.handle(IPC.videoFavList, async (e) => {
+    if (!videoFavSenderOk(e.sender)) return { ok: false, error: 'INVALID_OWNER' }
+    return { ok: true, data: videoFavorites.list() }
+  })
+  ipcMain.handle(IPC.videoFavToggle, async (e, req) => {
+    if (!videoFavSenderOk(e.sender)) return { ok: false, error: 'INVALID_OWNER' }
+    const r = req as { serverId?: string; path?: string; name?: string }
+    if (!r.path) return { ok: false, error: 'Missing path' }
+    if (r.serverId) findServer(r.serverId)
+    return { ok: true, data: videoFavorites.toggle(r.serverId, r.path, r.name ?? r.path.split(/[\\/]/).pop() ?? r.path) }
+  })
+  ipcMain.handle(IPC.videoFavRemove, async (e, req) => {
+    if (!videoFavSenderOk(e.sender)) return { ok: false, error: 'INVALID_OWNER' }
+    const r = req as { id?: string }
+    if (r.id) videoFavorites.remove(r.id)
     return { ok: true, data: true }
   })
 

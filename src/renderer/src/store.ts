@@ -220,6 +220,7 @@ interface Actions {
   toggleFavorite: (target: DiskTarget, path: string, name: string) => void
   removeFavorite: (id: string) => void
   isFavorite: (target: DiskTarget, path: string) => boolean
+  markFavoriteOpened: (id: string) => void
   recordRecent: (target: DiskTarget, path: string) => void
   removeRecent: (target: DiskTarget, path: string) => void
   clearRecentFolders: () => void
@@ -693,6 +694,12 @@ export const useStore = create<UIState & Actions>((set, get) => ({
 
   isFavorite(target, path) {
     return favIsFavorite(get().favorites, target, path)
+  },
+
+  markFavoriteOpened(id) {
+    const next = get().favorites.map((f) => (f.id === id ? { ...f, lastOpenedAt: Date.now() } : f))
+    saveJson(FAV_KEY, next)
+    set({ favorites: next })
   },
 
   recordRecent(target, path) {

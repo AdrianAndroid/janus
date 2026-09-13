@@ -53,6 +53,13 @@ export interface PlayerContext {
   /** Index of the clicked file inside items. */
   index: number
   progress: Record<string, ProgressEntry>
+  /** mediaProgressKey-format keys of favorited videos (marks playlist rows). */
+  favoriteKeys?: string[]
+}
+
+/** Stable key for progress/favorite identity: server-scoped for remote files. */
+export function mediaProgressKey(serverId: string | undefined, filePath: string): string {
+  return serverId ? `${serverId}:${filePath}` : filePath
 }
 
 export interface SaveProgressReq {

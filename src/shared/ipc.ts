@@ -111,6 +111,12 @@ export const IPC = {
   mediaOpen: 'media:open',
   playerContext: 'player:context',
   playerSaveProgress: 'player:save-progress',
+  mediaProgressMap: 'media:progress-map',
+
+  // Video favorites (main-process store)
+  videoFavList: 'videoFav:list',
+  videoFavToggle: 'videoFav:toggle',
+  videoFavRemove: 'videoFav:remove',
 
   // Document viewer
   viewerOpen: 'viewer:open',

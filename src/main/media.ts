@@ -4,7 +4,7 @@ import { Readable } from 'stream'
 import path from 'path'
 import type { ServerProfile } from '@shared/types'
 import type { PlayerContext, PlayerItem, ProgressEntry, SaveProgressReq } from '@shared/media'
-import { isVideoFile, naturalCompare } from '@shared/media'
+import { isVideoFile, mediaProgressKey, naturalCompare } from '@shared/media'
 import type { SSHManager } from './ssh-manager'
 import { localList } from './local-fs'
 
@@ -128,10 +128,8 @@ export function mediaUrl(serverId: string | undefined, filePath: string): string
   return `${MEDIA_SCHEME}://play?${params.toString()}`
 }
 
-/** Stable key for progress persistence: server-scoped for remote files. */
-export function mediaProgressKey(serverId: string | undefined, filePath: string): string {
-  return serverId ? `${serverId}:${filePath}` : filePath
-}
+/** Stable key for progress persistence (re-exported shared single source). */
+export { mediaProgressKey } from '@shared/media'
 
 // --- Progress store v2 (userData/media-progress.json) ---
 // Format: { key: {t, d?, done?, at} }. Legacy v1 ({key: seconds}) migrates on read.
@@ -140,7 +138,8 @@ function progressFile(): string {
   return path.join(app.getPath('userData'), 'media-progress.json')
 }
 
-function readProgressMap(): Record<string, ProgressEntry> {
+/** Read the progress map (exported for video-favorites merge — single migration path). */
+export function readProgressMap(): Record<string, ProgressEntry> {
   try {
     const raw = JSON.parse(readFileSync(progressFile(), 'utf8')) as Record<string, unknown>
     const out: Record<string, ProgressEntry> = {}
@@ -212,12 +211,18 @@ interface PlayerRecord {
   context: PlayerContext
 }
 
+/** Narrow view of the video favorites store (avoids a media→store import cycle). */
+export interface FavoriteKeysProvider {
+  keys: () => string[]
+}
+
 export class PlayerWindowManager {
   private wins = new Map<number, PlayerRecord>()
 
   constructor(
     private ssh: SSHManager,
-    private find: FindFn
+    private find: FindFn,
+    private favorites?: FavoriteKeysProvider
   ) {}
 
   async openPlayer(serverId: string | undefined, filePath: string, title?: string): Promise<void> {
@@ -230,7 +235,8 @@ export class PlayerWindowManager {
       serverId,
       items,
       index,
-      progress: readProgressMap()
+      progress: readProgressMap(),
+      favoriteKeys: this.favorites?.keys() ?? []
     }
 
     const win = new BrowserWindow({

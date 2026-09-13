@@ -9,6 +9,8 @@ export interface FavoriteFolder {
   path: string
   name: string
   addedAt: number
+  /** Updated when the favorite is successfully opened. */
+  lastOpenedAt?: number
 }
 
 export interface RecentFolder {

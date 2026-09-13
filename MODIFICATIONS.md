@@ -87,6 +87,16 @@
 - 锁仓统一清理：播放器窗口加入 vaultLock closeAll。
 - 测试：`scripts/test-player.mjs` 10/10（自然排序/过滤/进度迁移语义）。
 
+### 6.0.1 播放器功能补全（2026-09-13，方案见 docs/player-enhancements-implementation-plan.md）
+- **速度全局应用**：底部栏 `Gauge ×N` 循环档（0.5–2×），state + localStorage `janus.player.rate`；每次 `loadedmetadata` 重设（换源/重挂载会重置为 1）；`ratechange` 监听捕获原生菜单改速，单一事实来源。
+- **列表自动定位**：index 变化时当前行 `scrollIntoView({block:'nearest'})`（data-key 定位）。
+- **进度+时间显示**：行内 ✓/"at mm:ss" 后追加 `fmtShort(at)`（`src/shared/timefmt.ts`，当天 HH:mm/当年 MM-DD HH:mm/更早 YY-MM-DD），title 悬停 `fmtFull`；渲染层 progress 改组件 state `progressMap`（boot 用 ctx.progress 初始化，保存即刷新）。
+- **视频收藏**：集行 Star（行改 div 双按钮防嵌套）；**收藏存主进程** `src/main/video-favorites.ts`（`userData/video-favorites.json`，播放器是独立渲染进程，localStorage 双写会竞态，IPC 单写入者）；`videoFav:list/toggle/remove` 通道，sender 校验主窗或已登记 player 窗；`PlayerContext.favoriteKeys` 开窗合并（`mediaProgressKey` 已下沉 `src/shared/media.ts` 单一出处）。
+- **收藏夹视频区**：FavoritesPanel 顶部 Favorite videos（Play/设备标签/watched·resume 徽标/最后观看短文本+悬停完整时间/Remove）；点击校验（本地 localFs.stat/远程 sftp:stat，失效弹 stale 窗可删）→ `media:open` 打开，所在文件夹视频自动进列表；mount/focus/visibilitychange 重拉列表覆盖跨窗 toggle。
+- **文件夹收藏 lastOpenedAt**：`FavoriteFolder` 加可选字段，store 新 action `markFavoriteOpened(id)`，校验通过进入视图时写回；行尾短文本+悬停完整时间。
+- 测试：`scripts/test-video-favorites.mjs` 19/19（toggle/mergeProgress/时间格式固定 epoch）。
+- **FilePane 观看状态徽标**（2026-09-13）：文件列表视频行显示 `watched`（done，悬停最后观看时间）/ `at mm:ss`（续播点，悬停 Resume at+时间）；新增 IPC `media:progress-map`（主窗守卫，返回完整进度表）+ preload `media.progressMap()`；FilePane 目录加载与 window focus 时刷新；`fmtDuration` 入 `src/shared/timefmt.ts`。同日 FilePane 竖向布局新增 **Modified 列**（fmtShort 显示+fmtFull 悬停）。
+
 ### 6.1 初版实现（协议部分仍有效；窗口与进度轮询已被 6.0 取代）
 - 入口：FilePane 行内操作区，视频文件（mp4/m4v/webm/ogv/mov/mkv/avi/wmv/flv/ts/mpg/mpeg/3gp/rmvb）显示 Play 按钮，本地与远程栏均有效。
 - 架构：`src/main/media.ts` 注册自定义协议 `janus-media://`（`index.ts` 在 app ready 前 `registerMediaScheme()`，`ipc.ts` 在 ready 后 `setupMediaProtocol()`）；处理器支持 **HTTP Range**，本地走 `fs.createReadStream({start,end})`，远程走 `sftp.createReadStream({start,end})`（复用 `ssh-manager.getSftp`/`sftpStat`），**远程大视频免下载流式播放、可拖动进度**。
@@ -183,6 +193,8 @@
 | 播放器自动化 `node scripts/test-player.mjs` | ✅ 10/10 |
 | 收藏夹自动化 `node scripts/test-favorites.mjs` | ✅ 20/20 |
 | 查看器自动化 `node scripts/test-viewer.mjs` | ✅ 21/21 |
+| 视频收藏+时间 `node scripts/test-video-favorites.mjs` | ✅ 19/19 |
+| 播放器补全 GUI：倍速连播一致、列表定位、进度时间显示、视频收藏从收藏夹打开 | ❌ 未做 |
 | 查看器 GUI：PDF/docx/xlsx/文本 GBK/图片 本地+远程、页码记忆、双击路由 | ❌ 未做 |
 | 收藏夹 GUI：星标、收藏列表、单双栏切换、最近记录、重启保留 | ❌ 未做 |
 | frp 隧道传输 | ❌ 未做 |

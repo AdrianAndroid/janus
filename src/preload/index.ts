@@ -160,11 +160,18 @@ const api = {
   },
   notify: (title: string, body: string) => ipcRenderer.send(IPC.notifyShow, title, body),
   media: {
-    open: (req: import('../shared/types').MediaOpenRequest) => invoke<boolean>(IPC.mediaOpen, req)
+    open: (req: import('../shared/types').MediaOpenRequest) => invoke<boolean>(IPC.mediaOpen, req),
+    progressMap: () => invoke<Record<string, import('../shared/media').ProgressEntry>>(IPC.mediaProgressMap)
   },
   viewer: {
     open: (req: { path: string; serverId?: string; kind: import('../shared/viewer').ViewerKind }) =>
       invoke<boolean>(IPC.viewerOpen, req)
+  },
+  videoFavorites: {
+    list: () => invoke<import('../shared/video-favorites').VideoFavoriteView[]>(IPC.videoFavList),
+    toggle: (req: { serverId?: string; path: string; name?: string }) =>
+      invoke<{ favorited: boolean }>(IPC.videoFavToggle, req),
+    remove: (id: string) => invoke<boolean>(IPC.videoFavRemove, { id })
   },
   diskUsage: {
     openWindow: (req: { target: import('../shared/disk-usage').DiskTarget; initialPath?: string }) =>

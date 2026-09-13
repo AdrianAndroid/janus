@@ -25,6 +25,8 @@ import { useStore } from '../store'
 import type { DiskTarget } from '@shared/disk-usage'
 import { isFavorite as libIsFavorite } from '../lib/favorites'
 import { viewerFor } from '@shared/viewer'
+import { fmtDuration, fmtFull, fmtShort } from '@shared/timefmt'
+import { mediaProgressKey, type ProgressEntry } from '@shared/media'
 import type { SftpEntry } from '@shared/types'
 
 export function fmtSize(bytes: number): string {
@@ -101,6 +103,22 @@ export default function FilePane({
   const [copied, setCopied] = useState<string | null>(null)
   const [dirSizes, setDirSizes] = useState<Map<string, number | null>>(new Map())
   const sizeGen = useRef(0)
+  const [progressMap, setProgressMap] = useState<Record<string, ProgressEntry>>({})
+
+  const refreshProgress = useCallback(() => {
+    window.janus.media
+      .progressMap()
+      .then(setProgressMap)
+      .catch(() => undefined)
+  }, [])
+
+  // Watch-status refresh: on directory load and when the main window regains
+  // focus (e.g. after a player window closes).
+  useEffect(() => {
+    refreshProgress()
+    window.addEventListener('focus', refreshProgress)
+    return () => window.removeEventListener('focus', refreshProgress)
+  }, [refreshProgress, path])
 
   function copyPath(p: string): void {
     navigator.clipboard.writeText(p)
@@ -326,12 +344,14 @@ export default function FilePane({
             <tr>
               <th className="px-3 py-1.5 text-left font-medium">Name</th>
               {showSizes && <th className="w-20 px-2 py-1.5 text-right font-medium">Size</th>}
+              {showSizes && <th className="w-28 px-2 py-1.5 text-right font-medium">Modified</th>}
               <th className="w-28 px-2 py-1.5"></th>
             </tr>
           </thead>
           <tbody>
             {entries.map((e) => {
               const isSel = selected?.path === e.path
+              const watch = e.type === 'file' && isVideo(e.name) ? progressMap[mediaProgressKey(isLocal ? undefined : serverId, e.path)] : undefined
               return (
                 <tr
                   key={e.path}
@@ -351,6 +371,15 @@ export default function FilePane({
                       <span className={`truncate ${e.type === 'directory' ? 'text-slate-100' : 'text-slate-300'}`}>
                         {e.name}
                       </span>
+                      {watch?.done ? (
+                        <span className="shrink-0 rounded bg-good/15 px-1 text-[9px] text-good" title={watch.at ? fmtFull(watch.at) : ''}>
+                          watched
+                        </span>
+                      ) : watch && watch.t > 3 ? (
+                        <span className="shrink-0 rounded bg-warn/15 px-1 font-mono text-[9px] text-warn" title={watch.at ? `Resume at ${fmtDuration(watch.t)} · ${fmtFull(watch.at)}` : ''}>
+                          at {fmtDuration(watch.t)}
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   {showSizes && (
@@ -370,6 +399,11 @@ export default function FilePane({
                       ) : (
                         '—'
                       )}
+                    </td>
+                  )}
+                  {showSizes && (
+                    <td className="px-2 py-1.5 text-right font-mono text-[11px] text-slate-600" title={fmtFull(e.mtime)}>
+                      {fmtShort(e.mtime)}
                     </td>
                   )}
                   <td className="px-2 py-1.5">

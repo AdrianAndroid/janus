@@ -1,12 +1,14 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Clock, Copy, FolderOpen, HardDrive, Loader2, Monitor, Server as ServerIcon, Star, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, ArrowLeft, Clock, Copy, FolderOpen, HardDrive, Loader2, Monitor, Play, Server as ServerIcon, Star, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
 import FilesPanel from './FilesPanel'
 import Modal from './Modal'
 import type { Tab } from '../store'
 import type { DiskTarget } from '@shared/disk-usage'
 import type { FavoriteFolder, RecentFolder } from '../lib/favorites'
+import type { VideoFavoriteView } from '@shared/video-favorites'
 import { favoriteDisplayName, folderViewTabId } from '../lib/favorites'
+import { fmtFull, fmtShort } from '@shared/timefmt'
 
 function timeAgo(ts: number): string {
   const m = Math.floor((Date.now() - ts) / 60000)
@@ -25,7 +27,7 @@ interface FolderView {
 }
 
 interface StaleEntry {
-  kind: 'favorite' | 'recent'
+  kind: 'favorite' | 'recent' | 'video'
   target: DiskTarget
   path: string
   name: string
@@ -33,11 +35,33 @@ interface StaleEntry {
 }
 
 export default function FavoritesPanel(): JSX.Element {
-  const { vault, favorites, recentFolders, removeFavorite, removeRecent, clearRecentFolders, selectedServerId } = useStore()
+  const { vault, favorites, recentFolders, removeFavorite, removeRecent, clearRecentFolders, selectedServerId, markFavoriteOpened } = useStore()
   const [view, setView] = useState<FolderView | null>(null)
   const [stale, setStale] = useState<StaleEntry | null>(null)
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState<string | null>(null)
+  const [videoFavs, setVideoFavs] = useState<VideoFavoriteView[]>([])
+
+  const refreshVideoFavs = useCallback(async () => {
+    try {
+      setVideoFavs(await window.janus.videoFavorites.list())
+    } catch {
+      /* vault locked etc. — keep old list */
+    }
+  }, [])
+
+  // Load on mount and whenever the window regains focus (player windows may
+  // toggle favorites in their own process).
+  useEffect(() => {
+    void refreshVideoFavs()
+    const onFocus = (): void => void refreshVideoFavs()
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [refreshVideoFavs])
 
   const serverName = (target: DiskTarget): string | null => {
     if (target.kind === 'local') return null
@@ -61,6 +85,7 @@ export default function FavoritesPanel(): JSX.Element {
         setStale({ kind: favoriteId ? 'favorite' : 'recent', target, path, name, favoriteId })
         return
       }
+      if (favoriteId) markFavoriteOpened(favoriteId)
       setView({
         target,
         path,
@@ -80,8 +105,41 @@ export default function FavoritesPanel(): JSX.Element {
   function removeStale(): void {
     if (!stale) return
     if (stale.kind === 'favorite' && stale.favoriteId) removeFavorite(stale.favoriteId)
+    else if (stale.kind === 'video' && stale.favoriteId) void removeVideoFav(stale.favoriteId)
     else removeRecent(stale.target, stale.path)
     setStale(null)
+  }
+
+  /** Open a favorited video in the player (its folder's videos join the playlist). */
+  async function openVideo(f: VideoFavoriteView): Promise<void> {
+    const target: DiskTarget = f.serverId ? { kind: 'ssh', serverId: f.serverId } : { kind: 'local' }
+    if (serverMissing(target)) return
+    setChecking(true)
+    setCheckError(null)
+    try {
+      const exists =
+        target.kind === 'local'
+          ? (await window.janus.localFs.stat(f.path)) !== null
+          : (await window.janus.sftp.stat(target.serverId, f.path)) !== null
+      if (!exists) {
+        setStale({ kind: 'video', target, path: f.path, name: f.name, favoriteId: f.id })
+        return
+      }
+      await window.janus.media.open({ title: f.name, path: f.path, serverId: f.serverId })
+    } catch (e) {
+      setCheckError((e as Error).message)
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  async function removeVideoFav(id: string): Promise<void> {
+    try {
+      await window.janus.videoFavorites.remove(id)
+      await refreshVideoFavs()
+    } catch (e) {
+      setCheckError((e as Error).message)
+    }
   }
 
   if (view) {
@@ -128,6 +186,45 @@ export default function FavoritesPanel(): JSX.Element {
             Could not verify the path: {checkError}
           </div>
         )}
+        {/* Favorite videos */}
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+          <Play size={15} className="text-accent" /> Favorite videos
+        </div>
+        {videoFavs.length === 0 ? (
+          <div className="mb-6 rounded-lg border border-ink-600 bg-ink-800 px-4 py-5 text-center text-xs text-slate-500">
+            No favorite videos yet. In the player episode list, click the star on any episode.
+          </div>
+        ) : (
+          <div className="mb-6 overflow-hidden rounded-lg border border-ink-600">
+            {videoFavs.map((f) => (
+              <div key={f.id} className="group flex items-center gap-2 border-b border-ink-700/50 bg-ink-800 px-3 py-2 last:border-0 hover:bg-ink-700">
+                <Play size={13} className="shrink-0 text-accent" />
+                <span className="shrink-0 text-xs font-medium text-slate-200">{f.name}</span>
+                <DeviceTag target={f.serverId ? { kind: 'ssh', serverId: f.serverId } : { kind: 'local' }} deviceName={serverName(f.serverId ? { kind: 'ssh', serverId: f.serverId } : { kind: 'local' })} missing={serverMissing(f.serverId ? { kind: 'ssh', serverId: f.serverId } : { kind: 'local' })} />
+                {f.done ? (
+                  <span className="shrink-0 rounded bg-good/15 px-1 text-[10px] text-good">watched</span>
+                ) : f.resumeT !== undefined ? (
+                  <span className="shrink-0 rounded bg-warn/15 px-1 text-[10px] text-warn">resume</span>
+                ) : null}
+                <span className="min-w-0 flex-1" />
+                <span className="shrink-0 font-mono text-[10px] text-slate-500" title={f.lastWatchedAt ? fmtFull(f.lastWatchedAt) : 'never watched'}>
+                  {f.lastWatchedAt ? fmtShort(f.lastWatchedAt) : 'never'}
+                </span>
+                <button
+                  onClick={() => void openVideo(f)}
+                  disabled={serverMissing(f.serverId ? { kind: 'ssh', serverId: f.serverId } : { kind: 'local' })}
+                  className="flex items-center gap-1 rounded border border-ink-500 px-2 py-0.5 text-[11px] text-slate-300 hover:border-accent/60 hover:text-accent disabled:opacity-40"
+                >
+                  <Play size={11} /> Play
+                </button>
+                <button onClick={() => void removeVideoFav(f.id)} className="rounded p-1 text-slate-500 hover:bg-bad hover:text-white" title="Remove favorite">
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Favorites */}
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
           <Star size={15} className="text-warn" /> Favorite folders
@@ -177,7 +274,7 @@ export default function FavoritesPanel(): JSX.Element {
             <>
               <button onClick={() => setStale(null)} className="btn-ghost">Keep</button>
               <button onClick={removeStale} className="btn-primary bg-bad hover:bg-bad/90">
-                <Trash2 size={14} /> {stale.kind === 'favorite' ? 'Remove favorite' : 'Remove from recents'}
+                <Trash2 size={14} /> {stale.kind === 'recent' ? 'Remove from recents' : 'Remove favorite'}
               </button>
             </>
           }
@@ -188,8 +285,8 @@ export default function FavoritesPanel(): JSX.Element {
               <p className="font-medium text-white">{stale.name}</p>
               <p className="mt-1 break-all font-mono text-xs text-slate-400">{stale.path}</p>
               <p className="mt-2 text-xs text-slate-500">
-                This folder could not be found{stale.target.kind === 'ssh' ? ' on the server' : ' on this Mac'}. Remove it
-                from {stale.kind === 'favorite' ? 'your favorites' : 'recent folders'}?
+                This {stale.kind === 'video' ? 'video' : 'folder'} could not be found{stale.target.kind === 'ssh' ? ' on the server' : ' on this Mac'}.
+                Remove it from {stale.kind === 'recent' ? 'recent folders' : 'your favorites'}?
               </p>
             </div>
           </div>
@@ -221,6 +318,9 @@ function FavRow({ f, deviceName, missing, onOpen, onRemove }: { f: FavoriteFolde
       <span className="shrink-0 text-xs font-medium text-slate-200">{favoriteDisplayName(f)}</span>
       <DeviceTag target={f.target} deviceName={deviceName} missing={missing} />
       <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-500" title={f.path}>{f.path}</span>
+      <span className="shrink-0 font-mono text-[10px] text-slate-600" title={f.lastOpenedAt ? fmtFull(f.lastOpenedAt) : 'never opened'}>
+        {f.lastOpenedAt ? fmtShort(f.lastOpenedAt) : '—'}
+      </span>
       <button
         onClick={() => navigator.clipboard.writeText(f.path)}
         className="rounded p-1 text-slate-500 opacity-0 hover:bg-ink-500 hover:text-white group-hover:opacity-100"
