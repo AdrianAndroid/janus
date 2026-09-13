@@ -74,19 +74,31 @@
 - 远程/本地均以登录用户权限运行，无提权能力；远程目录权限不足需 `sudo chown/chmod`。
 - macOS 本地目录读不到时检查：系统设置 → 隐私与安全性 → 文件与文件夹 / 完全磁盘访问权限 → Janus(Electron)。
 
-## 6. 视频播放功能（2026-09-12 实现）
+## 6. 视频播放功能（2026-09-12 实现；同日升级为播放列表版）
 
+### 6.0 播放器升级：同目录列表 + 自动连播 + 选集（2026-09-12，方案见 docs/video-playlist-implementation-plan.md）
+- **弃用 data: URL 裸视频页**，改为打包播放页：`src/renderer/player.html` + `src/renderer/src/player/main.tsx` + 自包含 `src/preload/player.ts`（sandbox:true，内联 `player:context`/`player:save-progress` 通道名）。
+- `media:open` 入参不变，内部改走 `PlayerWindowManager.openPlayer`（`src/main/media.ts`）；FilePane 零改动。
+- 播放列表：点击播放时按被点文件所在目录实时生成（远程 `sftpList` / 本地 `localList`），`src/shared/media.ts` 的 `VIDEO_EXT`/`isVideoFile`/`naturalCompare`（E1<E2<E10、第1集<第2集<第10集）；列举失败回退单集。
+- 连播：`ended` → 标记 done → 自动切下一集（Autoplay 开关默认开，存 localStorage `janus.player.autoplay`）；最后一集停住不循环。
+- 选集：底部集列表，当前集高亮、✓已看、"at mm:ss"进度提示、点击切换；done 集重播从 0 并清除标记。
+- 进度存储 v2：`{key:{t,d?,done?,at}}`，旧格式（key:秒）读取时自动迁移；保存时机 timeupdate(5s节流)/pause/切集/pagehide；恢复阈值 >3 秒。
+- 协议层修复：`janus-media` Response 流被浏览器中止（切集/拖进度）时 destroy 底层 fs/sftp 读流（原为泄漏）。
+- 锁仓统一清理：播放器窗口加入 vaultLock closeAll。
+- 测试：`scripts/test-player.mjs` 10/10（自然排序/过滤/进度迁移语义）。
+
+### 6.1 初版实现（协议部分仍有效；窗口与进度轮询已被 6.0 取代）
 - 入口：FilePane 行内操作区，视频文件（mp4/m4v/webm/ogv/mov/mkv/avi/wmv/flv/ts/mpg/mpeg/3gp/rmvb）显示 Play 按钮，本地与远程栏均有效。
 - 架构：`src/main/media.ts` 注册自定义协议 `janus-media://`（`index.ts` 在 app ready 前 `registerMediaScheme()`，`ipc.ts` 在 ready 后 `setupMediaProtocol()`）；处理器支持 **HTTP Range**，本地走 `fs.createReadStream({start,end})`，远程走 `sftp.createReadStream({start,end})`（复用 `ssh-manager.getSftp`/`sftpStat`），**远程大视频免下载流式播放、可拖动进度**。
-- 播放窗口：`openMediaPlayer()` 新建独立 BrowserWindow（960×600 黑底），加载 data: URL 内嵌 `<video controls autoplay>`；无 preload、无 node 集成。
+- ~~播放窗口：`openMediaPlayer()` data: URL 裸视频页~~（已被 6.0 的 PlayerWindowManager + player.html 取代）。
 - IPC：`media:open`（`MediaOpenRequest{title,path,serverId?}`）；preload 暴露 `media.open`；远程请求先 `findServer` 校验。
 - 限制：Chromium 编解码决定可播范围——mp4/H.264/WebM 良好；**MKV/AVI/HEVC/RMVB 很可能无法解码**（按钮仍在，播不出属预期）；MIME 未知时回退 octet-stream。
-- 播放进度记忆（2026-09-12）：进度存主进程 `userData/media-progress.json`（key = `serverId:path` 或本地 path，远程按服务器隔离）；播放中每 5 秒及关闭窗口时经 `webContents.executeJavaScript` 读取 `video.currentTime` 保存；重开时 dom-ready 注入脚本在 `loadedmetadata` 后恢复 `currentTime`（>3 秒才恢复）。data: URL 页面无可靠 localStorage，故走主进程持久化。
+- ~~播放进度记忆：主进程 5 秒轮询 `executeJavaScript` 读写 `currentTime`~~（已被 6.0 的事件驱动保存 + 进度 v2 取代）。
 - **VNC 弹出窗口**（2026-09-12）：`VncPanel` 工具栏新增 Pop out 按钮 → `src/main/vnc-window.ts`（`VncWindowManager`）复用 `ssh.startVnc` 的 WS 桥（独立 sessionId），开 1280×820 独立窗口加载 `vnc.html`（`src/renderer/src/vnc/main.tsx`，noVNC + 状态栏 + Ctrl+Alt+Del + Reconnect）；`vnc:popout`/`vnc:context` IPC；preload `src/preload/vnc.ts` 自包含（sandbox:true 同样内联通道名）；关窗自动 stopVnc；锁仓关闭全部弹出窗；弹窗 ready-to-show 强制 show+focus（防止开到后台/其他 Space 被误判为失败）。
 - **VNC 首连竞态修复**（同日）：WS 桥在 SSH forwardOut 就绪前会丢弃 noVNC 帧 → 改为 backlog 缓冲，通道就绪后回放；标签页与弹窗的首次失败自动重试一次（800ms）；弹窗 getContext 失败显示明确错误。
 - **VNC 全部改为弹出窗口**（同日）：内置 VNC 标签页已移除（`VncPanel.tsx` 删除、TabKind 去掉 'vnc'、Workspace 分支与图标清理）；`store.openVnc` 改为直接调用 `vnc:popout`，ServerDetail/Sidebar 入口不变即得弹窗。旧 `vnc:start`/`vnc:stop` 通道保留未用（不删旧 IPC）。
 
-### 6.1 同日其他界面与体验调整
+### 6.2 同日其他界面与体验调整
 - `ServerDetail.tsx` 操作按钮 8 个一排过长 → 改为两行（Open Terminal/Files/Disk Usage/Services；Logs/VNC/RDP/Edit）。
 - `CopilotPanel.tsx` 输入框占位符 "Ask Copilot… (Enter to send, Shift+Enter for a new line)" 在窄栏换行被裁 → 缩短为 "Ask Copilot…"，快捷键说明移至 title 悬停。
 - `TransferQueue.tsx` 完成任务原仅 ✓ 无文字 → `done` 状态显示 "Completed"；任务保留设计不变（Clear finished 手动清除）。
@@ -148,5 +160,7 @@
 | GUI 逐页面目检 | ❌ 未做 |
 | 真机传输（192.168.2.2）：大文件续传、断网恢复、文件夹递归、冲突四动作 | ❌ 未做 |
 | 视频播放：本地/远程 mp4、Range 拖动、MKV 行为 | ❌ 未做 |
+| 播放器升级：同目录列表、连播 3 集、选集跳转、进度恢复（真机） | ❌ 未做 |
+| 播放器自动化 `node scripts/test-player.mjs` | ✅ 10/10 |
 | frp 隧道传输 | ❌ 未做 |
 | 首次真机传输出现 Failed（2026-09-12 用户报告），原因待确认（疑似权限/路径），错误文本未拿到 | ⏳ 待排查 |

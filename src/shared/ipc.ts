@@ -108,6 +108,8 @@ export const IPC = {
 
   // Media player
   mediaOpen: 'media:open',
+  playerContext: 'player:context',
+  playerSaveProgress: 'player:save-progress',
 
   // Disk Usage analyzer (analysis window)
   diskOpenWindow: 'disk:open-window',

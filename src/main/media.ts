@@ -3,11 +3,15 @@ import { createReadStream, promises as fs, readFileSync, writeFileSync } from 'f
 import { Readable } from 'stream'
 import path from 'path'
 import type { ServerProfile } from '@shared/types'
+import type { PlayerContext, PlayerItem, ProgressEntry, SaveProgressReq } from '@shared/media'
+import { isVideoFile, naturalCompare } from '@shared/media'
 import type { SSHManager } from './ssh-manager'
+import { localList } from './local-fs'
 
-// Video player: streams local or remote (SFTP) media into a separate
-// BrowserWindow through the custom `janus-media://` protocol with HTTP Range
-// support, so large remote files play without a full download.
+// Video player: streams local or remote (SFTP) media through the custom
+// `janus-media://` protocol with HTTP Range support, and plays it in a
+// standalone bundled player window with a same-directory playlist, autoplay
+// and per-episode progress memory.
 // Note: playback depends on Chromium codecs — mp4/H.264/WebM work well,
 // MKV/AVI/HEVC containers may not play.
 
@@ -42,6 +46,19 @@ type FindFn = (serverId: string) => { profile: ServerProfile; jump: ServerProfil
 interface MediaSource {
   size: number
   stream: (start: number, end?: number) => Readable
+}
+
+/** Wrap a node stream as a web stream that is destroyed on client abort. */
+function webStream(node: Readable): ReadableStream {
+  const web = Readable.toWeb(node) as ReadableStream
+  // When the browser cancels (seek, episode switch, closed window), kill the
+  // underlying fs/sftp stream instead of leaking it.
+  const origCancel = web.cancel.bind(web)
+  web.cancel = (reason?: unknown): Promise<void> => {
+    node.destroy()
+    return origCancel(reason)
+  }
+  return web
 }
 
 /** Install the protocol handler. Call after app 'ready'. */
@@ -94,62 +111,15 @@ export function setupMediaProtocol(ssh: SSHManager, find: FindFn): void {
         }
         headers['Content-Range'] = `bytes ${start}-${end}/${src.size}`
         headers['Content-Length'] = String(end - start + 1)
-        return new Response(Readable.toWeb(src.stream(start, end)) as ReadableStream, { status: 206, headers })
+        return new Response(webStream(src.stream(start, end)), { status: 206, headers })
       }
 
       headers['Content-Length'] = String(src.size)
-      return new Response(Readable.toWeb(src.stream(0)) as ReadableStream, { status: 200, headers })
+      return new Response(webStream(src.stream(0)), { status: 200, headers })
     } catch (e) {
       return new Response((e as Error).message, { status: 500 })
     }
   })
-}
-
-/** Open a standalone dark video-player window pointing at a media URL. */
-export function openMediaPlayer(title: string, mediaUrl: string, progressKey: string): void {
-  const win = new BrowserWindow({
-    width: 960,
-    height: 600,
-    minWidth: 480,
-    minHeight: 320,
-    backgroundColor: '#000000',
-    autoHideMenuBar: true,
-    title
-  })
-  const safeTitle = title.replace(/</g, '&lt;')
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>
-<style>html,body{margin:0;height:100%;background:#000}video{display:block;width:100%;height:100%;outline:none}</style>
-</head><body><video src="${mediaUrl}" controls autoplay></video></body></html>`
-  void win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
-
-  // --- Playback progress memory (main-process JSON store; data: URL pages
-  // have no reliable localStorage) ---
-  const resumeAt = getProgress(progressKey)
-  win.webContents.on('dom-ready', () => {
-    if (resumeAt > 3 && !win.isDestroyed()) {
-      void win.webContents.executeJavaScript(
-        `(() => { const v = document.querySelector('video'); if (!v) return;` +
-          `const t = ${JSON.stringify(resumeAt)};` +
-          `if (v.readyState >= 1) { v.currentTime = t; }` +
-          `else { v.addEventListener('loadedmetadata', () => { v.currentTime = t }, { once: true }); } })()`
-      )
-    }
-  })
-  const capture = async (): Promise<void> => {
-    if (win.isDestroyed()) return
-    try {
-      const t = await win.webContents.executeJavaScript('document.querySelector("video")?.currentTime ?? 0')
-      if (typeof t === 'number' && t > 0) saveProgress(progressKey, t)
-    } catch {
-      /* page gone */
-    }
-  }
-  const timer = setInterval(() => void capture(), 5000)
-  win.on('close', () => {
-    clearInterval(timer)
-    void capture()
-  })
-  win.on('closed', () => clearInterval(timer))
 }
 
 export function mediaUrl(serverId: string | undefined, filePath: string): string {
@@ -163,31 +133,158 @@ export function mediaProgressKey(serverId: string | undefined, filePath: string)
   return serverId ? `${serverId}:${filePath}` : filePath
 }
 
-// --- Progress store (userData/media-progress.json) ---
+// --- Progress store v2 (userData/media-progress.json) ---
+// Format: { key: {t, d?, done?, at} }. Legacy v1 ({key: seconds}) migrates on read.
 
 function progressFile(): string {
   return path.join(app.getPath('userData'), 'media-progress.json')
 }
 
-function readProgressMap(): Record<string, number> {
+function readProgressMap(): Record<string, ProgressEntry> {
   try {
-    return JSON.parse(readFileSync(progressFile(), 'utf8')) as Record<string, number>
+    const raw = JSON.parse(readFileSync(progressFile(), 'utf8')) as Record<string, unknown>
+    const out: Record<string, ProgressEntry> = {}
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        out[k] = { t: v, at: 0 }
+      } else if (v && typeof v === 'object' && typeof (v as ProgressEntry).t === 'number') {
+        out[k] = v as ProgressEntry
+      }
+    }
+    return out
   } catch {
     return {}
   }
 }
 
-function getProgress(key: string): number {
-  const t = readProgressMap()[key]
-  return typeof t === 'number' && Number.isFinite(t) ? t : 0
-}
-
-function saveProgress(key: string, seconds: number): void {
+export function saveProgressEntry(req: SaveProgressReq): void {
   try {
     const map = readProgressMap()
-    map[key] = Math.round(seconds * 10) / 10
+    const prev = map[req.key]
+    map[req.key] = {
+      t: Math.round(req.t * 10) / 10,
+      d: req.d ?? prev?.d,
+      done: req.done ?? prev?.done,
+      at: Date.now()
+    }
     writeFileSync(progressFile(), JSON.stringify(map))
   } catch {
     /* ignore quota/fs errors */
+  }
+}
+
+// --- Playlist ---
+
+function parentDirOf(p: string): string {
+  const trimmed = p.replace(/[\\/]+$/, '')
+  const idx = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  return idx > 0 ? trimmed.slice(0, idx) : trimmed.startsWith('/') ? '/' : '.'
+}
+
+/** List video files in the clicked file's directory, natural-sorted. Falls back to the single file. */
+export async function buildPlaylist(
+  ssh: SSHManager,
+  serverId: string | undefined,
+  filePath: string,
+  find: FindFn
+): Promise<PlayerItem[]> {
+  const dir = parentDirOf(filePath)
+  try {
+    const entries = serverId
+      ? (await ssh.sftpList(find(serverId).profile, dir, find(serverId).jump)).entries
+      : (await localList(dir)).entries
+    const videos = entries
+      .filter((e) => e.type === 'file' && isVideoFile(e.name))
+      .map((e) => ({ name: e.name, path: e.path, key: mediaProgressKey(serverId, e.path) }))
+    videos.sort((a, b) => naturalCompare(a.name, b.name))
+    if (videos.length > 0) return videos
+  } catch {
+    /* listing failed (permissions etc.) — fall back to single item */
+  }
+  const name = filePath.split(/[\\/]/).pop() || filePath
+  return [{ name, path: filePath, key: mediaProgressKey(serverId, filePath) }]
+}
+
+// --- Player windows ---
+
+interface PlayerRecord {
+  win: BrowserWindow
+  context: PlayerContext
+}
+
+export class PlayerWindowManager {
+  private wins = new Map<number, PlayerRecord>()
+
+  constructor(
+    private ssh: SSHManager,
+    private find: FindFn
+  ) {}
+
+  async openPlayer(serverId: string | undefined, filePath: string, title?: string): Promise<void> {
+    const items = await buildPlaylist(this.ssh, serverId, filePath, this.find)
+    const key = mediaProgressKey(serverId, filePath)
+    let index = items.findIndex((it) => it.key === key)
+    if (index < 0) index = 0
+    const context: PlayerContext = {
+      title: title || items[index].name,
+      serverId,
+      items,
+      index,
+      progress: readProgressMap()
+    }
+
+    const win = new BrowserWindow({
+      width: 1280,
+      height: 800,
+      minWidth: 720,
+      minHeight: 480,
+      backgroundColor: '#000000',
+      autoHideMenuBar: true,
+      title: context.title,
+      webPreferences: {
+        preload: path.join(__dirname, '../preload/player.js'),
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    })
+    this.wins.set(win.webContents.id, { win, context })
+    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    win.webContents.on('will-navigate', (e) => e.preventDefault())
+    win.on('closed', () => this.wins.delete(win.webContents.id))
+    win.once('ready-to-show', () => {
+      win.show()
+      win.focus()
+    })
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    if (devUrl) {
+      void win.loadURL(`${devUrl}/player.html`)
+    } else {
+      void win.loadFile(path.join(__dirname, '../renderer/player.html'))
+    }
+  }
+
+  contextFor(senderId: number): PlayerContext | null {
+    return this.wins.get(senderId)?.context ?? null
+  }
+
+  saveProgress(senderId: number, req: SaveProgressReq): void {
+    if (!this.wins.has(senderId)) return
+    saveProgressEntry(req)
+    const rec = this.wins.get(senderId)!
+    const prev = rec.context.progress[req.key]
+    rec.context.progress[req.key] = {
+      t: Math.round(req.t * 10) / 10,
+      d: req.d ?? prev?.d,
+      done: req.done ?? prev?.done,
+      at: Date.now()
+    }
+  }
+
+  closeAll(): void {
+    for (const rec of this.wins.values()) {
+      if (!rec.win.isDestroyed()) rec.win.destroy()
+    }
+    this.wins.clear()
   }
 }

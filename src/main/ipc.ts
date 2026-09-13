@@ -10,11 +10,12 @@ import { DbManager } from './db-manager'
 import { aiChat } from './ai'
 import { TransferManager } from './transfer-manager'
 import { localDirSize, localHome, localList, localMkdir, localRemove, localRename, localStat } from './local-fs'
-import { mediaProgressKey, mediaUrl, openMediaPlayer, setupMediaProtocol } from './media'
+import { PlayerWindowManager, setupMediaProtocol } from './media'
 import { registerDiskIpc, type DiskRuntime } from './disk-usage/ipc'
 import { VncWindowManager } from './vnc-window'
 import type { DiskTarget } from '@shared/disk-usage'
 import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
+import type { SaveProgressReq } from '@shared/media'
 import type { ServerProfile, TunnelRule, Vault, IpcResult } from '@shared/types'
 
 /** Wrap a handler so it always returns a tidy IpcResult and never throws across IPC. */
@@ -67,6 +68,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     const profile = findServer(serverId)
     return { profile, jump: jumpFor(profile) }
   })
+  const playerWindows = new PlayerWindowManager(ssh, (serverId) => {
+    const profile = findServer(serverId)
+    return { profile, jump: jumpFor(profile) }
+  })
   const diskRuntime: DiskRuntime = registerDiskIpc({
     getWindow,
     ssh,
@@ -93,8 +98,17 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
   handle(IPC.mediaOpen, async (req) => {
     const r = req as MediaOpenRequest
     if (r.serverId) findServer(r.serverId) // validates the id
-    openMediaPlayer(r.title || 'Player', mediaUrl(r.serverId, r.path), mediaProgressKey(r.serverId, r.path))
+    await playerWindows.openPlayer(r.serverId, r.path, r.title)
     return true
+  })
+  ipcMain.handle(IPC.playerContext, async (e) => {
+    const ctx = playerWindows.contextFor(e.sender.id)
+    if (!ctx) return { ok: false, error: 'INVALID_OWNER' }
+    return { ok: true, data: ctx }
+  })
+  ipcMain.handle(IPC.playerSaveProgress, async (e, req) => {
+    playerWindows.saveProgress(e.sender.id, req as SaveProgressReq)
+    return { ok: true, data: true }
   })
 
   // ---- Vault lifecycle ----
@@ -122,6 +136,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     diskRuntime.closeAllWindows()
     await diskRuntime.shutdown()
     vncWindows.closeAll()
+    playerWindows.closeAll()
     ssh.shutdown()
     dbm.shutdown()
     vaultStore.lock()
