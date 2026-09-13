@@ -9,7 +9,8 @@ import {
   Network,
   Settings,
   Lock,
-  CornerDownLeft
+  CornerDownLeft,
+  Star
 } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -58,6 +59,7 @@ export default function CommandPalette(): JSX.Element | null {
       { id: 'go-snippets', label: 'Snippet library', icon: Code2, keywords: 'snippet command', run: () => s.setSidePanel('snippets') },
       { id: 'go-tunnels', label: 'Port forwarding / tunnels', icon: Network, keywords: 'tunnel port forward socks', run: () => s.setSidePanel('tunnels') },
       { id: 'go-settings', label: 'Settings', icon: Settings, keywords: 'settings theme font', run: () => s.setSidePanel('settings') },
+      { id: 'go-favorites', label: 'Open Favorites', icon: Star, keywords: 'favorites star bookmark folders recent', run: () => s.openFavorites() },
       { id: 'lock', label: 'Lock vault', icon: Lock, keywords: 'lock quit', run: () => s.lock() }
     )
     return list

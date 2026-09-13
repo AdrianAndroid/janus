@@ -20,7 +20,8 @@ import {
   ScrollText,
   Monitor,
   MonitorPlay,
-  PieChart
+  PieChart,
+  Star
 } from 'lucide-react'
 import { useStore } from '../store'
 import { ratios, record, history } from '../lib/metricsHistory'
@@ -39,7 +40,7 @@ function timeAgo(ts?: number): string {
 }
 
 export default function ServerDetail(): JSX.Element {
-  const { vault, selectedServerId, openTerminal, openSftp, openDocker, openLogs, openVnc, openServerForm } = useStore()
+  const { vault, selectedServerId, openTerminal, openSftp, openDocker, openLogs, openVnc, openServerForm, openFavorites } = useStore()
   const server = vault?.servers.find((s) => s.id === selectedServerId)
 
   if (!server) {
@@ -122,6 +123,9 @@ export default function ServerDetail(): JSX.Element {
           </button>
           <button onClick={() => openServerForm(server)} className="btn-ghost border border-ink-500">
             <Pencil size={16} /> Edit
+          </button>
+          <button onClick={openFavorites} className="btn-ghost border border-ink-500" title="Favorite & recent folders">
+            <Star size={16} /> Favorites
           </button>
         </div>
       </div>

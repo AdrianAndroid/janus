@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Terminal as TerminalIcon, FolderTree, Box, ScrollText, Database, X, XCircle, ListX } from 'lucide-react'
+import { Terminal as TerminalIcon, FolderTree, Box, ScrollText, Database, X, XCircle, ListX, Star } from 'lucide-react'
 import { useStore } from '../store'
 import SplitTerminal from './SplitTerminal'
 import FilesPanel from './FilesPanel'
@@ -12,10 +12,11 @@ import SettingsPanel from './SettingsPanel'
 import FleetDashboard from './FleetDashboard'
 import BroadcastPanel from './BroadcastPanel'
 import DatabasesPanel from './DatabasesPanel'
+import FavoritesPanel from './FavoritesPanel'
 import ServerDetail from './ServerDetail'
 import type { Tab } from '../store'
 
-const TAB_ICON = { terminal: TerminalIcon, sftp: FolderTree, docker: Box, logs: ScrollText, db: Database } as const
+const TAB_ICON = { terminal: TerminalIcon, sftp: FolderTree, docker: Box, logs: ScrollText, db: Database, favorites: Star } as const
 
 function statusColor(status: Tab['status']): string {
   switch (status) {
@@ -31,7 +32,7 @@ function statusColor(status: Tab['status']): string {
 }
 
 export default function Workspace(): JSX.Element {
-  const { tabs, activeTabId, setActiveTab, closeTab, closeOtherTabs, closeAllTabs, reorderTab, sidePanel, miniMode } =
+  const { tabs, activeTabId, setActiveTab, closeTab, closeOtherTabs, closeAllTabs, reorderTab, sidePanel, miniMode, openFavorites } =
     useStore()
   const [menu, setMenu] = useState<{ x: number; y: number; tabId: string } | null>(null)
 
@@ -47,8 +48,8 @@ export default function Workspace(): JSX.Element {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col bg-ink-900">
-      {/* Tab bar (hidden in mini mode) */}
-      {tabs.length > 0 && !miniMode && (
+      {/* Tab bar (hidden in mini mode; always rendered so Favorites stays reachable) */}
+      {!miniMode && (
         <div className="flex h-10 shrink-0 items-stretch overflow-x-auto border-b border-ink-600 bg-ink-800">
           {tabs.map((tab) => {
             const active = tab.id === activeTabId
@@ -94,6 +95,14 @@ export default function Workspace(): JSX.Element {
               </div>
             )
           })}
+          {/* Favorites entry — always visible at the end of the tab bar */}
+          <button
+            onClick={openFavorites}
+            className="ml-auto flex shrink-0 items-center gap-1.5 border-l border-ink-600 px-3 text-xs text-slate-400 hover:bg-ink-700 hover:text-warn"
+            title="Open favorites"
+          >
+            <Star size={13} />
+          </button>
         </div>
       )}
 
@@ -130,6 +139,8 @@ export default function Workspace(): JSX.Element {
                 <DockerPanel tab={tab} />
               ) : tab.kind === 'logs' ? (
                 <LogsPanel tab={tab} />
+              ) : tab.kind === 'favorites' ? (
+                <FavoritesPanel />
               ) : (
                 <DbTab tab={tab} />
               )}

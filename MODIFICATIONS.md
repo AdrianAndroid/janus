@@ -104,6 +104,16 @@
 - `TransferQueue.tsx` 完成任务原仅 ✓ 无文字 → `done` 状态显示 "Completed"；任务保留设计不变（Clear finished 手动清除）。
 - **VNC 排障结论**（2026-09-12 实测）：台式机 x11vnc 正常运行于 5900（display :1，`-rfbauth ~/.vnc/passwd`），SSH 转发链路验证通过（收到 RFB 003.008）；连接失败原因是服务器配置未填 `vncPassword` → 在 ServerForm「Remote Desktop (VNC)」区填密码即可。
 
+## 6.5 Files 文件夹收藏 + 最近打开（2026-09-13 实现，方案见 docs/files-favorites-implementation-plan.md）
+
+- **收藏**：FilePane 目录行星标（实心=已收藏，再点取消）；`Favorites` 标签页（TabKind 新增 'favorites'，`openFavorites()` 单例，status 置 'connected'）；Workspace 标签栏改为**常驻**（0 标签也渲染，右端常驻 Star 按钮入口）；CommandPalette 加 `Open Favorites`。
+- **FavoritesPanel**：列表视图=收藏区（名称/完整路径/设备标签 This Mac 或服务器名/Open/Copy/Remove，addedAt 倒序）+ 最近打开区（50 上限/Clear all/相对时间）；点进后为文件夹视图：内嵌泛化 FilesPanel（伪 tab `fav-<id>`/`fav-recent-<kind>-<hash>`），默认**单栏**（收藏侧），"Show both panes" 切双栏；本地收藏无选中服务器时 `allowDual=false` 并提示。
+- **FilesPanel 泛化**：新 props `initialLeftPath/initialRightPath`（传 FilePane `initialPath` 仅首挂载生效）、`singleSide`（单栏模式，隐藏 layout 切换与传输钮）、`allowDual`、`enableCrossWindowNav`（收藏夹视图传 false，避免与真实 Files 标签抢消费 filesNavigation）。
+- **最近记录**：FilePane 每次 load 成功即 `recordRecent(target, cwd)`（含初始 home，接受）；同 target+path 去重置顶，硬上限 50。
+- **存储**：localStorage `janus.favorites.v1`/`janus.recentFolders.v1`（刻意不入 vault schema）；纯函数 `src/renderer/src/lib/favorites.ts`（sameTarget/toggleFavorite/recordRecent/favoriteDisplayName/folderViewTabId），单测 `scripts/test-favorites.mjs` 20/20。
+- 服务器被删：收藏/最近显示 "server missing"，Open 禁用、可移除。
+- **失效路径处理**（2026-09-13）：点击 Open 先校验路径存在性（本地 `localFs.stat`，远程新增 IPC `sftp:stat` → `ssh.sftpStat`）；不存在则弹二级确认窗（Modal）询问 Remove/Keep（收藏走 `removeFavorite`，最近走新 action `removeRecent`）；连接/权限失败不算失效，仅显示错误条不提供删除。
+
 ## 7. Disk Usage 磁盘分析器（2026-09-12 实现，设计规格见 docs/disk-usage-implementation-plan.md）
 
 ### 7.1 架构
@@ -162,5 +172,7 @@
 | 视频播放：本地/远程 mp4、Range 拖动、MKV 行为 | ❌ 未做 |
 | 播放器升级：同目录列表、连播 3 集、选集跳转、进度恢复（真机） | ❌ 未做 |
 | 播放器自动化 `node scripts/test-player.mjs` | ✅ 10/10 |
+| 收藏夹自动化 `node scripts/test-favorites.mjs` | ✅ 20/20 |
+| 收藏夹 GUI：星标、收藏列表、单双栏切换、最近记录、重启保留 | ❌ 未做 |
 | frp 隧道传输 | ❌ 未做 |
 | 首次真机传输出现 Failed（2026-09-12 用户报告），原因待确认（疑似权限/路径），错误文本未拿到 | ⏳ 待排查 |

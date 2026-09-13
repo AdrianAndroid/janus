@@ -23,7 +23,8 @@ import {
   Monitor,
   MonitorPlay,
   Database,
-  Sparkles
+  Sparkles,
+  Star
 } from 'lucide-react'
 import { useStore } from '../store'
 import type { ServerProfile, Group } from '@shared/types'
@@ -66,7 +67,8 @@ export default function Sidebar(): JSX.Element {
     moveServerToGroup,
     moveGroupToParent,
     copilotOpen,
-    toggleCopilot
+    toggleCopilot,
+    openFavorites
   } = useStore()
 
   const servers = vault?.servers ?? []
@@ -133,6 +135,9 @@ export default function Sidebar(): JSX.Element {
             </div>
             <button onClick={() => openGroupForm()} title="New group" className="btn-ghost px-2 py-1.5">
               <FolderPlus size={16} />
+            </button>
+            <button onClick={openFavorites} title="Favorites" className="btn-ghost px-2 py-1.5 hover:text-warn">
+              <Star size={16} />
             </button>
             <button onClick={() => openServerForm()} title="New server" className="btn-primary px-2 py-1.5">
               <Plus size={16} />

@@ -71,6 +71,7 @@ const api = {
     remove: (serverId: string, path: string, isDir: boolean) => invoke<boolean>(IPC.sftpRemove, serverId, path, isDir),
     removeRecursive: (serverId: string, path: string) => invoke<boolean>(IPC.sftpRemoveRecursive, serverId, path),
     dirSize: (serverId: string, path: string) => invoke<number>(IPC.sftpDirSize, serverId, path),
+    stat: (serverId: string, path: string) => invoke<{ size: number; isDirectory: boolean } | null>(IPC.sftpStat, serverId, path),
     rename: (serverId: string, from: string, to: string) => invoke<boolean>(IPC.sftpRename, serverId, from, to),
     readFile: (serverId: string, path: string) => invoke<string>(IPC.sftpReadFile, serverId, path),
     writeFile: (serverId: string, path: string, content: string) =>

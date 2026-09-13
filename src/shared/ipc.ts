@@ -100,6 +100,7 @@ export const IPC = {
   // Recursive remote delete
   sftpRemoveRecursive: 'sftp:remove-recursive',
   sftpDirSize: 'sftp:dir-size',
+  sftpStat: 'sftp:stat',
 
   // Tunnels / port forwarding
   tunnelStart: 'tunnel:start',

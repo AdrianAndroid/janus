@@ -16,6 +16,29 @@ import type {
   TransferTask
 } from '@shared/types'
 import type { OpenInFilesRequest } from '@shared/disk-usage'
+import type { DiskTarget } from '@shared/disk-usage'
+import type { FavoriteFolder, RecentFolder } from './lib/favorites'
+import { isFavorite as favIsFavorite, recordRecent as favRecordRecent, removeFavorite as favRemove, sameTarget, toggleFavorite as favToggle } from './lib/favorites'
+
+// Favorites & recent folders persistence (localStorage; UI convenience data,
+// NOT credentials — deliberately kept out of the vault schema).
+const FAV_KEY = 'janus.favorites.v1'
+const RECENT_KEY = 'janus.recentFolders.v1'
+function loadJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+function saveJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 // --- Lightweight UI-preference persistence (localStorage). NEVER store the
 // vault here — only non-sensitive UI state so the app remembers where you were.
@@ -42,7 +65,7 @@ function savePrefs(patch: Record<string, unknown>): void {
 }
 const prefs = loadPrefs()
 
-export type TabKind = 'terminal' | 'sftp' | 'docker' | 'logs' | 'db'
+export type TabKind = 'terminal' | 'sftp' | 'docker' | 'logs' | 'db' | 'favorites'
 
 export interface Tab {
   id: string
@@ -96,6 +119,10 @@ interface UIState {
   // disk usage cross-window requests
   filesNavigation: OpenInFilesRequest | null
   filesChangedToken: number
+
+  // folder favorites & recents
+  favorites: FavoriteFolder[]
+  recentFolders: RecentFolder[]
 }
 
 interface Actions {
@@ -188,6 +215,15 @@ interface Actions {
   // disk usage cross-window requests
   initDiskUsageListeners: () => void
   clearFilesNavigation: () => void
+
+  // folder favorites & recents
+  toggleFavorite: (target: DiskTarget, path: string, name: string) => void
+  removeFavorite: (id: string) => void
+  isFavorite: (target: DiskTarget, path: string) => boolean
+  recordRecent: (target: DiskTarget, path: string) => void
+  removeRecent: (target: DiskTarget, path: string) => void
+  clearRecentFolders: () => void
+  openFavorites: () => void
 }
 
 export const useStore = create<UIState & Actions>((set, get) => ({
@@ -219,6 +255,8 @@ export const useStore = create<UIState & Actions>((set, get) => ({
   rememberedActions: {},
   filesNavigation: null,
   filesChangedToken: 0,
+  favorites: loadJson<FavoriteFolder[]>(FAV_KEY, []),
+  recentFolders: loadJson<RecentFolder[]>(RECENT_KEY, []),
 
   async init() {
     set({ loading: true })
@@ -637,6 +675,52 @@ export const useStore = create<UIState & Actions>((set, get) => ({
 
   clearFilesNavigation() {
     set({ filesNavigation: null })
+  },
+
+  // ---- folder favorites & recents ----
+
+  toggleFavorite(target, path, name) {
+    const next = favToggle(get().favorites, target, path, name, uuid)
+    saveJson(FAV_KEY, next)
+    set({ favorites: next })
+  },
+
+  removeFavorite(id) {
+    const next = favRemove(get().favorites, id)
+    saveJson(FAV_KEY, next)
+    set({ favorites: next })
+  },
+
+  isFavorite(target, path) {
+    return favIsFavorite(get().favorites, target, path)
+  },
+
+  recordRecent(target, path) {
+    const next = favRecordRecent(get().recentFolders, target, path, Date.now())
+    if (next === get().recentFolders) return
+    saveJson(RECENT_KEY, next)
+    set({ recentFolders: next })
+  },
+
+  removeRecent(target, path) {
+    const next = get().recentFolders.filter((r) => !(sameTarget(r.target, target) && r.path === path))
+    saveJson(RECENT_KEY, next)
+    set({ recentFolders: next })
+  },
+
+  clearRecentFolders() {
+    saveJson(RECENT_KEY, [])
+    set({ recentFolders: [] })
+  },
+
+  openFavorites() {
+    const existing = get().tabs.find((t) => t.kind === 'favorites')
+    if (existing) {
+      set({ activeTabId: existing.id })
+      return
+    }
+    const tab: Tab = { id: uuid(), kind: 'favorites', serverId: '', title: 'Favorites', status: 'connected' }
+    set({ tabs: [...get().tabs, tab], activeTabId: tab.id })
   },
 
   toggleNotes() {

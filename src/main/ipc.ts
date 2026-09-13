@@ -339,6 +339,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     const p = findServer(serverId as string)
     return ssh.sftpDirSize(p, path as string, jumpFor(p))
   })
+  handle(IPC.sftpStat, async (serverId, path) => {
+    const p = findServer(serverId as string)
+    return ssh.sftpStat(p, path as string, jumpFor(p))
+  })
 
   // ---- File transfer engine ----
   handle(IPC.transferStart, async (req) => transfers.start(req as TransferRequest))

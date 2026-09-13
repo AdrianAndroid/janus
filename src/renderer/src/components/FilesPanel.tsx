@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Columns2, Loader2, Rows2, Save } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Columns2, Loader2, PanelRightClose, Rows2, Save } from 'lucide-react'
 import { useStore } from '../store'
 import Modal from './Modal'
 import FilePane, { joinPath } from './FilePane'
@@ -8,7 +8,20 @@ import ConflictModal from './ConflictModal'
 import type { Tab } from '../store'
 import type { SftpEntry } from '@shared/types'
 
-export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
+interface FilesPanelProps {
+  tab: Tab
+  /** Initial directories for the two panes (favorites folder view). */
+  initialLeftPath?: string
+  initialRightPath?: string
+  /** Start with only this pane visible; a divider button expands to dual. */
+  singleSide?: 'local' | 'remote'
+  /** Allow expanding from single to dual (false = stay single, no expander). */
+  allowDual?: boolean
+  /** Consume cross-window "Open in Files" requests (false for favorites view). */
+  enableCrossWindowNav?: boolean
+}
+
+export default function FilesPanel({ tab, initialLeftPath, initialRightPath, singleSide, allowDual = true, enableCrossWindowNav = true }: FilesPanelProps): JSX.Element {
   const {
     setTabStatus,
     initTransferListeners,
@@ -31,6 +44,8 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
   const [editing, setEditing] = useState<SftpEntry | null>(null)
   const [layout, setLayout] = useState<'vertical' | 'horizontal'>('vertical')
   const vertical = layout === 'vertical'
+  const [dual, setDual] = useState(!singleSide)
+  const showBoth = dual || !singleSide
   const [nav, setNav] = useState<{ pane: 'local' | 'remote'; path: string; selectName?: string; token: number } | null>(null)
 
   useEffect(() => {
@@ -40,6 +55,7 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
 
   // Consume "Open in Files" navigation requests targeted at this tab.
   useEffect(() => {
+    if (!enableCrossWindowNav) return
     if (!filesNavigation) return
     const req = filesNavigation
     if (req.target.kind === 'ssh' && req.target.serverId !== serverId) return
@@ -50,7 +66,7 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
       token: Date.now()
     })
     clearFilesNavigation()
-  }, [filesNavigation, serverId, clearFilesNavigation])
+  }, [filesNavigation, serverId, clearFilesNavigation, enableCrossWindowNav])
 
   // Files changed elsewhere (Disk Usage delete) → refresh both panes.
   const lastChangeToken = useRef(filesChangedToken)
@@ -112,78 +128,118 @@ export default function FilesPanel({ tab }: { tab: Tab }): JSX.Element {
     </button>
   )
 
+  const collapseToggle = singleSide ? (
+    <button
+      onClick={() => setDual(false)}
+      className="btn-ghost border border-ink-500 p-1.5"
+      title="Show single pane"
+    >
+      <PanelRightClose size={14} />
+    </button>
+  ) : null
+
+  const localPane = (
+    <FilePane
+      kind="local"
+      serverId={serverId}
+      selected={leftSel}
+      onSelect={setLeftSel}
+      onPathChange={setLeftPath}
+      onTransferEntry={upload}
+      refreshToken={leftRefresh}
+      showSizes={vertical}
+      nav={nav?.pane === 'local' ? nav : null}
+      initialPath={initialLeftPath}
+      showTransfer={showBoth}
+    />
+  )
+  const remotePane = (
+    <FilePane
+      kind="remote"
+      serverId={serverId}
+      selected={rightSel}
+      onSelect={setRightSel}
+      onPathChange={setRightPath}
+      onTransferEntry={download}
+      onEditFile={setEditing}
+      refreshToken={rightRefresh}
+      onStatus={(ok) => setTabStatus(tab.id, ok ? 'connected' : 'error')}
+      showSizes={vertical}
+      nav={nav?.pane === 'remote' ? nav : null}
+      initialPath={initialRightPath}
+      showTransfer={showBoth}
+    />
+  )
+
   return (
     <div className="flex h-full flex-col bg-ink-900">
-      <div className={`flex min-h-0 flex-1 ${vertical ? 'flex-col' : ''}`}>
-        <FilePane
-          kind="local"
-          serverId={serverId}
-          selected={leftSel}
-          onSelect={setLeftSel}
-          onPathChange={setLeftPath}
-          onTransferEntry={upload}
-          refreshToken={leftRefresh}
-          showSizes={vertical}
-          nav={nav?.pane === 'local' ? nav : null}
-        />
+      {showBoth ? (
+        <div className={`flex min-h-0 flex-1 ${vertical ? 'flex-col' : ''}`}>
+          {localPane}
 
-        {/* Divider with transfer buttons + layout toggle */}
-        {vertical ? (
-          <div className="flex h-9 shrink-0 items-center justify-center gap-4 border-y border-ink-600 bg-ink-800">
-            <button
-              onClick={() => leftSel && upload(leftSel)}
-              disabled={!leftSel || !rightPath}
-              className="btn-primary flex items-center gap-1.5 px-3 py-1 text-xs disabled:opacity-30"
-              title={leftSel ? `Upload "${leftSel.name}"` : 'Select a local file or folder'}
-            >
-              <ArrowDown size={13} /> Upload
-            </button>
-            {layoutToggle}
-            <button
-              onClick={() => rightSel && download(rightSel)}
-              disabled={!rightSel || !leftPath}
-              className="btn-primary flex items-center gap-1.5 px-3 py-1 text-xs disabled:opacity-30"
-              title={rightSel ? `Download "${rightSel.name}"` : 'Select a remote file or folder'}
-            >
-              <ArrowUp size={13} /> Download
-            </button>
-          </div>
-        ) : (
-          <div className="flex w-12 shrink-0 flex-col items-center justify-center gap-3 border-x border-ink-600 bg-ink-800">
-            <button
-              onClick={() => leftSel && upload(leftSel)}
-              disabled={!leftSel || !rightPath}
-              className="btn-primary p-2 disabled:opacity-30"
-              title={leftSel ? `Upload "${leftSel.name}"` : 'Select a local file or folder'}
-            >
-              <ArrowRight size={15} />
-            </button>
-            {layoutToggle}
-            <button
-              onClick={() => rightSel && download(rightSel)}
-              disabled={!rightSel || !leftPath}
-              className="btn-primary p-2 disabled:opacity-30"
-              title={rightSel ? `Download "${rightSel.name}"` : 'Select a remote file or folder'}
-            >
-              <ArrowLeft size={15} />
-            </button>
-          </div>
-        )}
+          {/* Divider with transfer buttons + layout toggle */}
+          {vertical ? (
+            <div className="flex h-9 shrink-0 items-center justify-center gap-4 border-y border-ink-600 bg-ink-800">
+              <button
+                onClick={() => leftSel && upload(leftSel)}
+                disabled={!leftSel || !rightPath}
+                className="btn-primary flex items-center gap-1.5 px-3 py-1 text-xs disabled:opacity-30"
+                title={leftSel ? `Upload "${leftSel.name}"` : 'Select a local file or folder'}
+              >
+                <ArrowDown size={13} /> Upload
+              </button>
+              {layoutToggle}
+              {collapseToggle}
+              <button
+                onClick={() => rightSel && download(rightSel)}
+                disabled={!rightSel || !leftPath}
+                className="btn-primary flex items-center gap-1.5 px-3 py-1 text-xs disabled:opacity-30"
+                title={rightSel ? `Download "${rightSel.name}"` : 'Select a remote file or folder'}
+              >
+                <ArrowUp size={13} /> Download
+              </button>
+            </div>
+          ) : (
+            <div className="flex w-12 shrink-0 flex-col items-center justify-center gap-3 border-x border-ink-600 bg-ink-800">
+              <button
+                onClick={() => leftSel && upload(leftSel)}
+                disabled={!leftSel || !rightPath}
+                className="btn-primary p-2 disabled:opacity-30"
+                title={leftSel ? `Upload "${leftSel.name}"` : 'Select a local file or folder'}
+              >
+                <ArrowRight size={15} />
+              </button>
+              {layoutToggle}
+              {collapseToggle}
+              <button
+                onClick={() => rightSel && download(rightSel)}
+                disabled={!rightSel || !leftPath}
+                className="btn-primary p-2 disabled:opacity-30"
+                title={rightSel ? `Download "${rightSel.name}"` : 'Select a remote file or folder'}
+              >
+                <ArrowLeft size={15} />
+              </button>
+            </div>
+          )}
 
-        <FilePane
-          kind="remote"
-          serverId={serverId}
-          selected={rightSel}
-          onSelect={setRightSel}
-          onPathChange={setRightPath}
-          onTransferEntry={download}
-          onEditFile={setEditing}
-          refreshToken={rightRefresh}
-          onStatus={(ok) => setTabStatus(tab.id, ok ? 'connected' : 'error')}
-          showSizes={vertical}
-          nav={nav?.pane === 'remote' ? nav : null}
-        />
-      </div>
+          {remotePane}
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {singleSide === 'local' ? localPane : remotePane}
+          {allowDual && (
+            <div className="flex h-8 shrink-0 items-center justify-center border-y border-ink-600 bg-ink-800">
+              <button
+                onClick={() => setDual(true)}
+                className="btn-ghost flex items-center gap-1.5 border border-ink-500 px-3 py-1 text-xs"
+                title="Show both panes"
+              >
+                <Columns2 size={13} /> Show both panes
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <TransferQueue />
 

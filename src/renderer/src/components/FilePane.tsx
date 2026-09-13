@@ -17,8 +17,12 @@ import {
   Upload,
   Download,
   Play,
-  PieChart
+  PieChart,
+  Star
 } from 'lucide-react'
+import { useStore } from '../store'
+import type { DiskTarget } from '@shared/disk-usage'
+import { isFavorite as libIsFavorite } from '../lib/favorites'
 import type { SftpEntry } from '@shared/types'
 
 export function fmtSize(bytes: number): string {
@@ -60,6 +64,10 @@ interface Props {
   showSizes: boolean
   /** One-shot navigation request to a directory (optionally selecting an entry). */
   nav?: { path: string; selectName?: string; token: number } | null
+  /** First directory to open on mount (falls back to home/'.'). */
+  initialPath?: string
+  /** Hide the per-row upload/download button (single-pane favorites view). */
+  showTransfer?: boolean
 }
 
 /** One side of the dual-pane file manager (local disk or remote SFTP). */
@@ -74,9 +82,15 @@ export default function FilePane({
   refreshToken,
   onStatus,
   showSizes,
-  nav
+  nav,
+  initialPath,
+  showTransfer = true
 }: Props): JSX.Element {
   const isLocal = kind === 'local'
+  const paneTarget: DiskTarget = isLocal ? { kind: 'local' } : { kind: 'ssh', serverId }
+  const favorites = useStore((s) => s.favorites)
+  const toggleFavorite = useStore((s) => s.toggleFavorite)
+  const recordRecent = useStore((s) => s.recordRecent)
   const [path, setPath] = useState('')
   const [entries, setEntries] = useState<SftpEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -98,13 +112,14 @@ export default function FilePane({
       setError(null)
       try {
         let dir = target ?? path
-        if (!dir) dir = isLocal ? await window.janus.localFs.home() : '.'
+        if (!dir) dir = initialPath ?? (isLocal ? await window.janus.localFs.home() : '.')
         const { cwd, entries: list } = isLocal
           ? await window.janus.localFs.list(dir)
           : await window.janus.sftp.list(serverId, dir)
         setEntries(list)
         setPath(cwd)
         onPathChange(cwd)
+        recordRecent(paneTarget, cwd)
         onStatus?.(true)
         return list
       } catch (e) {
@@ -341,6 +356,20 @@ export default function FilePane({
                   )}
                   <td className="px-2 py-1.5">
                     <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100">
+                      {e.type === 'directory' && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            toggleFavorite(paneTarget, e.path, e.name)
+                          }}
+                          className={`rounded p-1 hover:bg-ink-500 ${
+                            libIsFavorite(favorites, paneTarget, e.path) ? 'text-warn' : 'text-slate-400 hover:text-white'
+                          }`}
+                          title={libIsFavorite(favorites, paneTarget, e.path) ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          <Star size={12} fill={libIsFavorite(favorites, paneTarget, e.path) ? 'currentColor' : 'none'} />
+                        </button>
+                      )}
                       {e.type === 'file' && isVideo(e.name) && (
                         <button
                           onClick={(ev) => {
@@ -353,16 +382,18 @@ export default function FilePane({
                           <Play size={12} />
                         </button>
                       )}
-                      <button
-                        onClick={(ev) => {
-                          ev.stopPropagation()
-                          onTransferEntry(e)
-                        }}
-                        className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
-                        title={isLocal ? 'Upload to remote' : 'Download to local'}
-                      >
-                        {isLocal ? <Upload size={12} /> : <Download size={12} />}
-                      </button>
+                      {showTransfer && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            onTransferEntry(e)
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
+                          title={isLocal ? 'Upload to remote' : 'Download to local'}
+                        >
+                          {isLocal ? <Upload size={12} /> : <Download size={12} />}
+                        </button>
+                      )}
                       <button
                         onClick={(ev) => {
                           ev.stopPropagation()
