@@ -18,11 +18,13 @@ import {
   Download,
   Play,
   PieChart,
-  Star
+  Star,
+  Eye
 } from 'lucide-react'
 import { useStore } from '../store'
 import type { DiskTarget } from '@shared/disk-usage'
 import { isFavorite as libIsFavorite } from '../lib/favorites'
+import { viewerFor } from '@shared/viewer'
 import type { SftpEntry } from '@shared/types'
 
 export function fmtSize(bytes: number): string {
@@ -241,14 +243,30 @@ export default function FilePane({
     if (e.type === 'directory') {
       onSelect(null)
       void load(e.path)
-    } else if (e.type === 'file' && !isLocal) {
-      onEditFile?.(e)
+    } else if (e.type === 'file') {
+      // Double-click routing: video → player, previewable → viewer,
+      // otherwise remote files keep the old behavior (edit).
+      if (isVideo(e.name)) {
+        play(e)
+        return
+      }
+      if (viewerFor(e.name) !== 'unsupported') {
+        viewFile(e)
+        return
+      }
+      if (!isLocal) onEditFile?.(e)
     }
   }
 
   function play(e: SftpEntry): void {
     void window.janus.media
       .open({ title: e.name, path: e.path, serverId: isLocal ? undefined : serverId })
+      .catch((err) => setError((err as Error).message))
+  }
+
+  function viewFile(e: SftpEntry): void {
+    void window.janus.viewer
+      .open({ path: e.path, serverId: isLocal ? undefined : serverId, kind: viewerFor(e.name) })
       .catch((err) => setError((err as Error).message))
   }
 
@@ -380,6 +398,18 @@ export default function FilePane({
                           title="Play video"
                         >
                           <Play size={12} />
+                        </button>
+                      )}
+                      {e.type === 'file' && viewerFor(e.name) !== 'unsupported' && (
+                        <button
+                          onClick={(ev) => {
+                            ev.stopPropagation()
+                            viewFile(e)
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-ink-500 hover:text-white"
+                          title="View file"
+                        >
+                          <Eye size={12} />
                         </button>
                       )}
                       {showTransfer && (

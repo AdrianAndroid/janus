@@ -114,6 +114,15 @@
 - 服务器被删：收藏/最近显示 "server missing"，Open 禁用、可移除。
 - **失效路径处理**（2026-09-13）：点击 Open 先校验路径存在性（本地 `localFs.stat`，远程新增 IPC `sftp:stat` → `ssh.sftpStat`）；不存在则弹二级确认窗（Modal）询问 Remove/Keep（收藏走 `removeFavorite`，最近走新 action `removeRecent`）；连接/权限失败不算失效，仅显示错误条不提供删除。
 
+## 6.6 通用文件查看器 Viewer（2026-09-13 实现，方案见 docs/viewer-implementation-plan.md）
+
+- **架构**：独立 Viewer 窗口（`src/main/viewer-window.ts`）+ `viewer.html` + `src/renderer/src/viewer/main.tsx`（路由+`ViewerErrorBoundary`）+ 自包含 `src/preload/viewer.ts`；字节统一走既有 `janus-media://`（本地/远程零差异，免下载）；IPC `viewer:open`（主窗守卫）/`viewer:context`/`viewer:save-progress`（sender 校验）；锁仓 closeAll；`render-process-gone` 关窗兜底。
+- **格式矩阵**：PDF（pdfjs-dist v6，worker 以 `?url` 打包、`task.onPassword` 拒加密、页码记忆存 `userData/viewer-progress.json`）、.docx（docx-preview）、.xlsx/.xls/.csv（SheetJS→HTML 表+sheet 标签，前 1000 行）、纯文本（CodeMirror 只读 `@uiw/react-codemirror`，UTF-8 strict 失败回退 **GB18030**；.md 源码/marked+DOMPurify 预览切换）、图片（`<img>` Fit/Actual）；.doc/.ppt/.pptx 与未知类型 → Unsupported 回退页。
+- **防崩溃三层防线**（用户专项要求）：扩展名白名单 `viewerFor()`（`src/shared/viewer.ts`）→ 魔数嗅探 `sniffMatches()`（PDF `%PDF-`/Office `PK`/图片魔数/文本 NUL 抽样；WEBP 'P'=0x50 已由测试抓修）→ 每查看器 ErrorBoundary；上限：文本 10MB（截断预览 2MB）、图片 100MB、docx/xlsx 50MB、xlsx 1000 行、解析 30s 超时；组件卸载取消在途加载。
+- **FilePane 入口**：View（Eye）行按钮 + **双击行为变更**：`isVideoFile`→播放器、`viewerFor` 命中→Viewer、否则远程=Edit/本地无行为（优先级显式，互不串）。
+- **依赖新增**：pdfjs-dist、docx-preview、xlsx、marked、dompurify、@uiw/react-codemirror+codemirror、@codemirror/lang-json/javascript/xml。
+- 测试：`scripts/test-viewer.mjs` 21/21（路由/魔数/NUL 判定/GB18030 回退）。
+
 ## 7. Disk Usage 磁盘分析器（2026-09-12 实现，设计规格见 docs/disk-usage-implementation-plan.md）
 
 ### 7.1 架构
@@ -173,6 +182,8 @@
 | 播放器升级：同目录列表、连播 3 集、选集跳转、进度恢复（真机） | ❌ 未做 |
 | 播放器自动化 `node scripts/test-player.mjs` | ✅ 10/10 |
 | 收藏夹自动化 `node scripts/test-favorites.mjs` | ✅ 20/20 |
+| 查看器自动化 `node scripts/test-viewer.mjs` | ✅ 21/21 |
+| 查看器 GUI：PDF/docx/xlsx/文本 GBK/图片 本地+远程、页码记忆、双击路由 | ❌ 未做 |
 | 收藏夹 GUI：星标、收藏列表、单双栏切换、最近记录、重启保留 | ❌ 未做 |
 | frp 隧道传输 | ❌ 未做 |
 | 首次真机传输出现 Failed（2026-09-12 用户报告），原因待确认（疑似权限/路径），错误文本未拿到 | ⏳ 待排查 |

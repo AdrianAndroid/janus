@@ -28,7 +28,8 @@ export default defineConfig({
           index: resolve('src/preload/index.ts'),
           'disk-usage': resolve('src/preload/disk-usage.ts'),
           vnc: resolve('src/preload/vnc.ts'),
-          player: resolve('src/preload/player.ts')
+          player: resolve('src/preload/player.ts'),
+          viewer: resolve('src/preload/viewer.ts')
         }
       }
     }
@@ -55,7 +56,8 @@ export default defineConfig({
           index: resolve('src/renderer/index.html'),
           diskUsage: resolve('src/renderer/disk-usage.html'),
           vnc: resolve('src/renderer/vnc.html'),
-          player: resolve('src/renderer/player.html')
+          player: resolve('src/renderer/player.html'),
+          viewer: resolve('src/renderer/viewer.html')
         }
       }
     }

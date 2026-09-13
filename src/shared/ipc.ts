@@ -112,6 +112,11 @@ export const IPC = {
   playerContext: 'player:context',
   playerSaveProgress: 'player:save-progress',
 
+  // Document viewer
+  viewerOpen: 'viewer:open',
+  viewerContext: 'viewer:context',
+  viewerSaveProgress: 'viewer:save-progress',
+
   // Disk Usage analyzer (analysis window)
   diskOpenWindow: 'disk:open-window',
   diskContext: 'disk:context',

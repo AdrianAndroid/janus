@@ -162,6 +162,10 @@ const api = {
   media: {
     open: (req: import('../shared/types').MediaOpenRequest) => invoke<boolean>(IPC.mediaOpen, req)
   },
+  viewer: {
+    open: (req: { path: string; serverId?: string; kind: import('../shared/viewer').ViewerKind }) =>
+      invoke<boolean>(IPC.viewerOpen, req)
+  },
   diskUsage: {
     openWindow: (req: { target: import('../shared/disk-usage').DiskTarget; initialPath?: string }) =>
       invoke<boolean>(IPC.diskOpenWindow, req),

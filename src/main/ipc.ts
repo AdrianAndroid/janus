@@ -13,6 +13,7 @@ import { localDirSize, localHome, localList, localMkdir, localRemove, localRenam
 import { PlayerWindowManager, setupMediaProtocol } from './media'
 import { registerDiskIpc, type DiskRuntime } from './disk-usage/ipc'
 import { VncWindowManager } from './vnc-window'
+import { ViewerWindowManager } from './viewer-window'
 import type { DiskTarget } from '@shared/disk-usage'
 import type { ConflictAction, KeyType, DbConnection, AiMessage, MediaOpenRequest, TransferRequest } from '@shared/types'
 import type { SaveProgressReq } from '@shared/media'
@@ -111,6 +112,25 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     return { ok: true, data: true }
   })
 
+  // ---- Document viewer ----
+  const viewerWindows = new ViewerWindowManager()
+  handle(IPC.viewerOpen, async (req) => {
+    const r = req as { path?: string; serverId?: string; kind?: import('@shared/viewer').ViewerKind }
+    if (!r.path || !r.kind) throw new Error('Missing path or kind')
+    if (r.serverId) findServer(r.serverId)
+    viewerWindows.openViewer(r.serverId, r.path, r.kind, r.serverId ? findServer(r.serverId).name : undefined)
+    return true
+  })
+  ipcMain.handle(IPC.viewerContext, async (e) => {
+    const ctx = viewerWindows.contextFor(e.sender.id)
+    if (!ctx) return { ok: false, error: 'INVALID_OWNER' }
+    return { ok: true, data: ctx }
+  })
+  ipcMain.handle(IPC.viewerSaveProgress, async (e, req) => {
+    viewerWindows.saveProgress(e.sender.id, req as import('@shared/viewer').ViewerProgressReq)
+    return { ok: true, data: true }
+  })
+
   // ---- Vault lifecycle ----
   handle(IPC.vaultStatus, async () => ({
     exists: await vaultStore.exists(),
@@ -137,6 +157,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): DiskRuntime 
     await diskRuntime.shutdown()
     vncWindows.closeAll()
     playerWindows.closeAll()
+    viewerWindows.closeAll()
     ssh.shutdown()
     dbm.shutdown()
     vaultStore.lock()
